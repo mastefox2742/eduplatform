@@ -1,31 +1,16 @@
 /**
  * Firestore service layer — school platform
+ * Utilise l'instance Firebase centrale depuis @/config/firebase
  */
-import { initializeApp, getApps } from 'firebase/app'
 import {
-  getFirestore, collection, doc,
+  collection, doc,
   onSnapshot, query, where, orderBy,
   addDoc, updateDoc, serverTimestamp,
-  Timestamp, DocumentData, QuerySnapshot
+  Timestamp,
 } from 'firebase/firestore'
-import { getAuth } from 'firebase/auth'
+import { db, auth } from '@/config/firebase'
 
-// Firebase config (demo — replace with real values via env)
-const firebaseConfig = {
-  apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY            ?? 'demo-key',
-  authDomain:        process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN        ?? 'demo.firebaseapp.com',
-  projectId:         process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID         ?? 'school-demo',
-  storageBucket:     process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET     ?? 'school-demo.appspot.com',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '000000000000',
-  appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID             ?? '1:000000000000:web:demo',
-}
-
-export const firebaseApp = getApps().length === 0
-  ? initializeApp(firebaseConfig)
-  : getApps()[0]
-
-export const db   = getFirestore(firebaseApp)
-export const auth = getAuth(firebaseApp)
+export { db, auth }
 
 // ── Collection helpers ───────────────────────────────────────────────────────
 export const cols = {
@@ -95,16 +80,29 @@ export interface FSFee {
 }
 
 // ── Mutation helpers ─────────────────────────────────────────────────────────
-export async function addSubmission(schoolId: string, data: Omit<FSSubmission, 'id' | 'submittedAt'>) {
+export async function addSubmission(
+  schoolId: string,
+  data: Omit<FSSubmission, 'id' | 'submittedAt'>,
+) {
   return addDoc(cols.submissions(schoolId), { ...data, submittedAt: serverTimestamp() })
 }
 
-export async function reviewSubmission(schoolId: string, submissionId: string, grade: number, note: string) {
+export async function reviewSubmission(
+  schoolId: string,
+  submissionId: string,
+  grade: number,
+  note: string,
+) {
   return updateDoc(doc(cols.submissions(schoolId), submissionId), {
-    teacherGrade: grade, teacherNote: note, reviewed: true,
+    teacherGrade: grade,
+    teacherNote:  note,
+    reviewed:     true,
   })
 }
 
 export async function publishCourse(schoolId: string, courseId: string, published: boolean) {
-  return updateDoc(doc(cols.courses(schoolId), courseId), { published, updatedAt: serverTimestamp() })
+  return updateDoc(doc(cols.courses(schoolId), courseId), {
+    published,
+    updatedAt: serverTimestamp(),
+  })
 }

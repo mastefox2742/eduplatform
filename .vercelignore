@@ -1,0 +1,6 @@
+apps/mobile
+node_modules
+**/node_modules
+**/.expo
+**/android
+**/ios

@@ -1,7 +1,8 @@
 {
-  "buildCommand": "pnpm --filter @school/web exec vite build",
+  "rootDirectory": "apps/web",
+  "buildCommand": "vite build",
   "outputDirectory": "dist",
-  "installCommand": "pnpm install",
+  "installCommand": "cd ../.. && pnpm install",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]

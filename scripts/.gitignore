@@ -1,0 +1,5 @@
+# Clé privée du compte de service Firebase — NE JAMAIS COMMITTER
+service-account.json
+*.json
+!package.json
+node_modules/

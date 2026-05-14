@@ -1,0 +1,142 @@
+// ============================================================
+// FIREBASE STORAGE SECURITY RULES
+// Contrôle d'accès aux fichiers (PDFs de cours, exports RGPD)
+// ============================================================
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ===========================================================
+    // FONCTIONS HELPER
+    // ===========================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getRole() {
+      return request.auth.token.role;
+    }
+
+    function getSchoolId() {
+      return request.auth.token.schoolId;
+    }
+
+    function isDirection() {
+      return isAuthenticated() && getRole() == 'direction';
+    }
+
+    function isProfesseur() {
+      return isAuthenticated() && getRole() == 'professeur';
+    }
+
+    function isEleve() {
+      return isAuthenticated() && getRole() == 'eleve';
+    }
+
+    // Vérifie que le fichier uploadé est un PDF
+    function isPDF() {
+      return request.resource.contentType == 'application/pdf';
+    }
+
+    // Vérifie que le fichier uploadé est une image
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // Taille max pour les PDFs : 50 MB
+    function pdfSizeOk() {
+      return request.resource.size <= 50 * 1024 * 1024;
+    }
+
+    // Taille max pour les images : 5 MB
+    function imageSizeOk() {
+      return request.resource.size <= 5 * 1024 * 1024;
+    }
+
+    // ===========================================================
+    // CHEMIN : courses/{schoolId}/{courseId}/
+    // PDFs et médias des cours
+    // Structure : courses/{schoolId}/{courseId}/{filename}
+    // ===========================================================
+    match /courses/{schoolId}/{courseId}/{filename} {
+      // Lecture : membres de l'école ayant accès au cours
+      // La vérification d'accès précise (classeId) se fait via Firestore
+      // Storage vérifie uniquement l'école (schoolId dans le path)
+      allow read: if isAuthenticated()
+        && getSchoolId() == schoolId
+        && (isDirection() || isProfesseur() || isEleve());
+
+      // Upload : professeurs et direction de l'école
+      allow create, update: if isAuthenticated()
+        && getSchoolId() == schoolId
+        && (isDirection() || isProfesseur())
+        && (isPDF() && pdfSizeOk()
+            || isImage() && imageSizeOk());
+
+      // Suppression : direction ou professeur auteur (auteur vérifié via Firestore)
+      allow delete: if isAuthenticated()
+        && getSchoolId() == schoolId
+        && (isDirection() || isProfesseur());
+    }
+
+    // ===========================================================
+    // CHEMIN : users/{uid}/
+    // Avatars et fichiers personnels des utilisateurs
+    // ===========================================================
+    match /users/{uid}/{filename} {
+      // Un utilisateur accède à ses propres fichiers
+      allow read: if isAuthenticated()
+        && (request.auth.uid == uid
+            || isDirection());  // La direction peut voir tous les fichiers
+
+      // Chaque utilisateur upload ses propres fichiers (images uniquement)
+      allow create, update: if isAuthenticated()
+        && request.auth.uid == uid
+        && isImage()
+        && imageSizeOk();
+
+      allow delete: if isAuthenticated()
+        && (request.auth.uid == uid || isDirection());
+    }
+
+    // ===========================================================
+    // CHEMIN : _gdpr_exports/{uid}/
+    // Exports de données RGPD (générés par Cloud Function)
+    // JAMAIS accessible directement - uniquement via URL signée
+    // ===========================================================
+    match /_gdpr_exports/{uid}/{filename} {
+      // Lecture : INTERDIT directement (utilisez l'URL signée générée par la CF)
+      allow read: if false;
+
+      // Écriture : INTERDIT côté client (uniquement Cloud Functions Admin SDK)
+      allow write: if false;
+    }
+
+    // ===========================================================
+    // CHEMIN : school-assets/{schoolId}/
+    // Logos, bannières de l'établissement
+    // ===========================================================
+    match /school-assets/{schoolId}/{filename} {
+      // Tous les membres de l'école peuvent lire
+      allow read: if isAuthenticated() && getSchoolId() == schoolId;
+
+      // Seule la direction peut modifier les assets de l'école
+      allow write: if isAuthenticated()
+        && getSchoolId() == schoolId
+        && isDirection()
+        && isImage()
+        && imageSizeOk();
+    }
+
+    // ===========================================================
+    // RÈGLE DE REFUS PAR DÉFAUT
+    // Tout chemin non listé est refusé
+    // ===========================================================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

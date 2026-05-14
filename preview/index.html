@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EduSchool — Aperçu Mobile</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#1e293b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:24px 12px}
+  h1{color:#94a3b8;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px}
+
+  .phones{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+
+  .phone{
+    width:320px;background:#f5f5f5;border-radius:36px;
+    box-shadow:0 0 0 10px #111,0 0 0 12px #333,0 20px 60px rgba(0,0,0,.6);
+    overflow:hidden;position:relative;
+  }
+  .phone-bar{background:#fff;padding:10px 20px 6px;display:flex;justify-content:space-between;font-size:11px;font-weight:600;color:#111}
+  .phone-label{color:#64748b;font-size:11px;text-align:center;margin-top:10px;letter-spacing:1px;text-transform:uppercase}
+
+  /* ── SCREEN ── */
+  .screen{background:#f5f5f5;overflow:hidden}
+
+  /* HEADER */
+  .s-header{background:#fff;padding:14px 16px 10px;border-bottom:1px solid #e5e7eb}
+  .s-header h2{font-size:20px;font-weight:700;color:#111}
+  .s-header p{font-size:11px;color:#9ca3af;margin-top:1px}
+
+  /* TABS */
+  .s-tabs{display:flex;background:#fff;border-bottom:1px solid #e5e7eb}
+  .s-tab{flex:1;padding:9px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;border-bottom:2px solid transparent;cursor:pointer;transition:.2s}
+  .s-tab.active{border-bottom-color:#2563eb}
+  .s-tab-icon{font-size:14px}
+  .s-tab-label{font-size:10px;color:#9ca3af;font-weight:500}
+  .s-tab.active .s-tab-label{color:#2563eb;font-weight:600}
+
+  /* SCROLL AREA */
+  .s-scroll{padding:12px;display:flex;flex-direction:column;gap:10px;max-height:520px;overflow-y:auto}
+  .s-scroll::-webkit-scrollbar{width:3px}
+  .s-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+
+  /* BALANCE CARD */
+  .balance-card{background:#fff;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .balance-row{display:flex;align-items:center;margin-bottom:10px}
+  .balance-stat{flex:1;text-align:center}
+  .balance-val{font-size:13px;font-weight:700;color:#16a34a}
+  .balance-val.red{color:#dc2626}
+  .balance-key{font-size:10px;color:#9ca3af;margin-top:2px}
+  .balance-div{width:1px;height:36px;background:#e5e7eb}
+  .progress-bg{height:8px;background:#f3f4f6;border-radius:99px;overflow:hidden;margin-bottom:4px}
+  .progress-fill{height:100%;background:#2563eb;border-radius:99px}
+  .progress-pct{font-size:10px;color:#9ca3af;text-align:center}
+
+  /* ALERT BOX */
+  .alert-box{background:#fff;border-radius:12px;padding:10px 12px;border-left:3px solid #2563eb;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .alert-head{display:flex;align-items:center;gap:5px;margin-bottom:6px;font-size:11px;font-weight:600;color:#2563eb}
+  .alert-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-top:1px solid #f3f4f6;font-size:11px;color:#374151}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .dot-red{background:#dc2626}.dot-yellow{background:#eab308}.dot-green{background:#16a34a}
+
+  /* TABLE */
+  .table-wrap{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .table-heading{font-size:14px;font-weight:600;color:#1f2937;padding:12px 14px;border-bottom:1px solid #e5e7eb}
+  .t-head{display:flex;padding:7px 14px;background:#f9fafb;border-bottom:1px solid #e5e7eb}
+  .th{font-size:11px;font-weight:700;color:#6b7280}
+  .th-fac{flex:2}.th-imp{flex:1.2;text-align:right}.th-sta{flex:1.8;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:3px}
+  .t-row{display:flex;align-items:center;padding:9px 14px;border-bottom:1px solid #f3f4f6;cursor:pointer;transition:.15s}
+  .t-row:hover{background:#f8fafc}
+  .t-row.alt{background:#f9fafb}
+  .td-fac{flex:2;display:flex;align-items:center;gap:3px}
+  .td-plus{font-size:12px;color:#9ca3af}
+  .td-id{font-size:12px;color:#2563eb;text-decoration:underline}
+  .td-imp{flex:1.2;font-size:12px;color:#374151;font-weight:500;text-align:right}
+  .td-sta{flex:1.8;display:flex;align-items:center;justify-content:flex-end;gap:4px}
+  .status-dot{width:10px;height:10px;border-radius:50%}
+  .sta-label{font-size:10px;font-weight:500}
+  .sta-green{color:#16a34a}.sta-yellow{color:#854d0e}.sta-red{color:#dc2626}
+
+  /* LEGEND */
+  .legend{background:#fff;border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .legend-title{font-size:14px;font-weight:600;color:#1f2937;margin-bottom:6px}
+  .legend-sep{height:2px;background:#2563eb;width:36px;margin-bottom:10px}
+  .legend-item{display:flex;align-items:center;gap:10px;padding:6px 0}
+  .legend-dot-big{width:16px;height:16px;border-radius:50%}
+  .legend-lbl{font-size:12px;color:#374151}
+
+  /* SEARCH */
+  .search-bar{background:#fff;border:1px solid #d1d5db;border-radius:6px;padding:9px 12px;display:flex;align-items:center;gap:8px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .search-btn{background:#2563eb;border:none;border-radius:4px;padding:6px 10px;cursor:pointer}
+  .search-placeholder{flex:1;font-size:13px;color:#9ca3af}
+
+  /* CAREER */
+  .career-section{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .career-toggle{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:2px solid #2563eb}
+  .career-toggle-title{font-size:14px;font-weight:600;color:#1f2937}
+  .career-toggle-sub{font-size:11px;color:#9ca3af}
+  .career-body{padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+  .career-line{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f9fafb}
+  .career-key{font-size:12px;color:#6b7280}
+  .career-val{font-size:12px;color:#374151;font-weight:600}
+  .career-status-row{display:flex;align-items:center;gap:5px}
+  .career-program{font-size:13px;font-weight:700;color:#111;margin-top:8px;padding-top:8px;border-top:1px solid #f3f4f6}
+  .career-school{font-size:11px;color:#9ca3af;margin-top:2px}
+  .career-link{display:flex;align-items:center;gap:4px;margin-top:6px;font-size:12px;color:#2563eb;text-decoration:underline;cursor:pointer}
+
+  /* EXAM TABLE */
+  .exam-table{border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;margin-bottom:8px}
+  .exam-head{display:flex;background:#f3f4f6;padding:7px 10px}
+  .exam-th{font-size:11px;font-weight:700;color:#6b7280}
+  .exam-row{display:flex;padding:7px 10px;border-top:1px solid #f3f4f6}
+  .exam-row.alt{background:#f9fafb}
+  .exam-td{font-size:12px;color:#6b7280}
+  .exam-td.bold{font-weight:700;color:#111;text-align:right}
+  .libretto-link{display:flex;align-items:center;gap:5px;font-size:12px;color:#2563eb;text-decoration:underline;cursor:pointer}
+  .control-grid{display:flex;flex-wrap:wrap;padding:10px;gap:8px}
+  .control-card{flex:1;min-width:44%;background:#f9fafb;border-radius:8px;padding:12px;text-align:center;cursor:pointer}
+  .control-icon{font-size:22px}
+  .control-label{font-size:11px;color:#374151;font-weight:500;margin-top:4px}
+
+  /* SUPPLIES */
+  .sup-summary{background:#fff;border-radius:12px;padding:14px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .sup-pct{font-size:22px;font-weight:700;color:#16a34a}
+  .sup-pct-label{font-size:10px;color:#9ca3af}
+  .sup-stats{background:#fff;border-radius:12px;padding:12px;display:flex;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .sup-stat{flex:1;text-align:center}
+  .sup-stat-val{font-size:16px;font-weight:700}
+  .sup-stat-lbl{font-size:10px;color:#9ca3af}
+  .sup-tip{background:#EFF6FF;border-radius:6px;padding:8px 10px;display:flex;gap:5px;align-items:center;font-size:11px;color:#2563eb}
+  .sub-group{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+  .sub-group-head{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:#f9fafb;border-bottom:1px solid #f3f4f6}
+  .sub-group-name{font-size:13px;font-weight:700;color:#1f2937}
+  .sub-badge{padding:2px 8px;border-radius:99px;background:#e5e7eb;font-size:11px;font-weight:700;color:#6b7280}
+  .sub-badge.done{background:#dcfce7;color:#16a34a}
+  .sup-row{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-bottom:1px solid #f9fafb;cursor:pointer}
+  .sup-check{width:22px;height:22px;border-radius:6px;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;font-size:13px;color:#fff}
+  .sup-check.done{background:#16a34a;border-color:#16a34a}
+  .sup-name{font-size:13px;color:#1f2937;font-weight:500}
+  .sup-name.done{text-decoration:line-through;color:#9ca3af}
+  .sup-meta{font-size:11px;color:#9ca3af;margin-top:2px}
+
+  /* HOME SCREEN */
+  .home-header{background:#2563eb;padding:14px 16px 36px;display:flex;justify-content:space-between;align-items:flex-start}
+  .home-greeting{font-size:14px;color:rgba(255,255,255,.75)}
+  .home-name{font-size:22px;font-weight:700;color:#fff}
+  .home-btns{display:flex;gap:8px}
+  .home-btn{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;position:relative}
+  .home-badge{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:#ef4444;border:1.5px solid #2563eb}
+
+  .stats-grid{display:flex;flex-wrap:wrap;gap:8px;padding:0 12px;margin-top:-18px;margin-bottom:10px}
+  .stat-card{flex:1;min-width:44%;background:#fff;border-radius:12px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+  .stat-icon-wrap{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:8px;font-size:16px}
+  .stat-val{font-size:18px;font-weight:700;color:#111}
+  .stat-unit{font-size:11px;font-weight:400;color:#9ca3af}
+  .stat-lbl{font-size:10px;color:#9ca3af;font-weight:500;margin-top:2px}
+
+  .quick-grid{display:flex;flex-wrap:wrap;gap:8px}
+  .quick-card{flex:1;min-width:44%;background:#fff;border-radius:12px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer;transition:.15s}
+  .quick-card:hover{transform:translateY(-1px)}
+  .quick-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:6px;position:relative}
+  .quick-alert-dot{position:absolute;top:2px;right:2px;width:10px;height:10px;border-radius:50%;background:#ef4444;border:1.5px solid #fff}
+  .quick-label{font-size:13px;font-weight:700;color:#111}
+  .quick-sub{font-size:10px;color:#9ca3af;margin-top:2px;line-height:1.4}
+
+  .alert-banner{background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer}
+  .alert-banner-icon{width:34px;height:34px;border-radius:17px;background:#FEE2E2;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+  .alert-banner-title{font-size:12px;font-weight:700;color:#dc2626}
+  .alert-banner-sub{font-size:10px;color:#dc2626;margin-top:2px;line-height:1.4}
+
+  .course-card{background:#fff;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:8px;cursor:pointer}
+  .course-emoji{width:42px;height:42px;border-radius:10px;background:#f9fafb;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+  .course-subject{font-size:10px;color:#9ca3af;font-weight:500}
+  .course-title{font-size:13px;font-weight:600;color:#1f2937;margin:2px 0}
+  .course-prog-bg{height:4px;background:#f3f4f6;border-radius:99px;overflow:hidden}
+  .course-prog-fill{height:100%;background:#2563eb;border-radius:99px}
+  .course-pct{font-size:11px;font-weight:700;color:#2563eb;flex-shrink:0}
+
+  /* BOTTOM NAV */
+  .bottom-nav{background:#fff;border-top:1px solid #f3f4f6;display:flex;padding:6px 0 10px}
+  .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+  .nav-icon{font-size:20px}
+  .nav-label{font-size:9px;font-weight:600;color:#9ca3af}
+  .nav-item.active .nav-label{color:#2563eb}
+
+  .section-title-h{font-size:16px;font-weight:700;color:#111;margin-bottom:10px}
+
+  /* TABS */
+  .js-tab-content{display:none}
+  .js-tab-content.active{display:flex;flex-direction:column;gap:10px}
+</style>
+</head>
+<body>
+<h1>📱 EduSchool — Aperçu Interface Élève</h1>
+
+<div class="phones">
+
+  <!-- ══ PHONE 1: HOME ══ -->
+  <div>
+    <div class="phone">
+      <div class="phone-bar"><span>9:41</span><span>📶 🔋</span></div>
+      <div class="screen">
+        <!-- Home header -->
+        <div class="home-header">
+          <div>
+            <div class="home-greeting">Bonjour,</div>
+            <div class="home-name">Aminata 👋</div>
+          </div>
+          <div class="home-btns">
+            <div class="home-btn">🤖</div>
+            <div class="home-btn">🔔<div class="home-badge"></div></div>
+          </div>
+        </div>
+        <div class="s-scroll" style="max-height:500px">
+          <!-- Stats -->
+          <div class="stats-grid" style="padding:0;margin-top:0">
+            <div class="stat-card">
+              <div class="stat-icon-wrap" style="background:#EFF6FF">📈</div>
+              <div class="stat-val">14.2<span class="stat-unit">/20</span></div>
+              <div class="stat-lbl">Moyenne</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon-wrap" style="background:#FFF7ED">⏰</div>
+              <div class="stat-val">2<span class="stat-unit"> j</span></div>
+              <div class="stat-lbl">Absences</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon-wrap" style="background:#F5F3FF">📚</div>
+              <div class="stat-val">6<span class="stat-unit">/sem</span></div>
+              <div class="stat-lbl">Cours</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon-wrap" style="background:#FEF2F2">✏️</div>
+              <div class="stat-val">3<span class="stat-unit"></span></div>
+              <div class="stat-lbl">À faire</div>
+            </div>
+          </div>
+
+          <!-- Quick access -->
+          <div class="section-title-h">Accès rapide</div>
+          <div class="quick-grid">
+            <div class="quick-card">
+              <div class="quick-icon" style="background:#EFF6FF">📚</div>
+              <div class="quick-label">Mes Cours</div>
+              <div class="quick-sub">6 cours disponibles</div>
+            </div>
+            <div class="quick-card">
+              <div class="quick-icon" style="background:#F5F3FF">✏️<div class="quick-alert-dot"></div></div>
+              <div class="quick-label">Exercices</div>
+              <div class="quick-sub">3 exercices à faire</div>
+            </div>
+            <div class="quick-card">
+              <div class="quick-icon" style="background:#FEF2F2">💰<div class="quick-alert-dot"></div></div>
+              <div class="quick-label">Frais scolaires</div>
+              <div class="quick-sub">2 paiements en attente</div>
+            </div>
+            <div class="quick-card">
+              <div class="quick-icon" style="background:#F0FDF4">🎒</div>
+              <div class="quick-label">Fournitures</div>
+              <div class="quick-sub">7/17 articles acquis</div>
+            </div>
+          </div>
+
+          <!-- Alert banner -->
+          <div class="alert-banner">
+            <div class="alert-banner-icon">⚠️</div>
+            <div style="flex:1">
+              <div class="alert-banner-title">Frais scolaires en attente</div>
+              <div class="alert-banner-sub">La mensualité de janvier 2026 n'a pas été reçue.</div>
+            </div>
+            <span style="color:#dc2626;font-size:14px">›</span>
+          </div>
+
+          <!-- Recent courses -->
+          <div class="section-title-h">Derniers cours</div>
+          <div class="course-card">
+            <div class="course-emoji">📐</div>
+            <div style="flex:1">
+              <div class="course-subject">Mathématiques</div>
+              <div class="course-title">Les Dérivées</div>
+              <div class="course-prog-bg"><div class="course-prog-fill" style="width:75%"></div></div>
+            </div>
+            <div class="course-pct">75%</div>
+          </div>
+          <div class="course-card">
+            <div class="course-emoji">⚡</div>
+            <div style="flex:1">
+              <div class="course-subject">Physique</div>
+              <div class="course-title">Lois de Newton</div>
+              <div class="course-prog-bg"><div class="course-prog-fill" style="width:40%"></div></div>
+            </div>
+            <div class="course-pct">40%</div>
+          </div>
+          <div class="course-card">
+            <div class="course-emoji">✍️</div>
+            <div style="flex:1">
+              <div class="course-subject">Français</div>
+              <div class="course-title">L'Argumentation</div>
+              <div class="course-prog-bg"><div class="course-prog-fill" style="width:90%"></div></div>
+            </div>
+            <div class="course-pct">90%</div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <div class="nav-item active"><div class="nav-icon">🏠</div><div class="nav-label" style="color:#2563eb">Accueil</div></div>
+        <div class="nav-item"><div class="nav-icon">📚</div><div class="nav-label">Cours</div></div>
+        <div class="nav-item"><div class="nav-icon">✏️</div><div class="nav-label">Exercices</div></div>
+        <div class="nav-item"><div class="nav-icon">💰</div><div class="nav-label">Finances</div></div>
+        <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">Profil</div></div>
+      </div>
+    </div>
+    <div class="phone-label">🏠 Accueil</div>
+  </div>
+
+  <!-- ══ PHONE 2: FINANCES — FRAIS ══ -->
+  <div>
+    <div class="phone">
+      <div class="phone-bar"><span>9:41</span><span>📶 🔋</span></div>
+      <div class="screen">
+        <div class="s-header">
+          <h2>💰 Finances</h2>
+          <p>Suivi scolaire · 2025/2026</p>
+        </div>
+        <div class="s-tabs">
+          <div class="s-tab active"><div class="s-tab-icon">🧾</div><div class="s-tab-label" style="color:#2563eb">Frais</div></div>
+          <div class="s-tab"><div class="s-tab-icon">🎓</div><div class="s-tab-label">Carrière</div></div>
+          <div class="s-tab"><div class="s-tab-icon">🎒</div><div class="s-tab-label">Fournitures</div></div>
+        </div>
+        <div class="s-scroll">
+          <!-- Balance -->
+          <div class="balance-card">
+            <div class="balance-row">
+              <div class="balance-stat">
+                <div class="balance-val">435 000 GNF</div>
+                <div class="balance-key">Total payé</div>
+              </div>
+              <div class="balance-div"></div>
+              <div class="balance-stat">
+                <div class="balance-val red">120 000 GNF</div>
+                <div class="balance-key">Reste dû</div>
+              </div>
+            </div>
+            <div class="progress-bg"><div class="progress-fill" style="width:78%"></div></div>
+            <div class="progress-pct">78% réglé sur 555 000 GNF</div>
+          </div>
+          <!-- Alert box -->
+          <div class="alert-box">
+            <div class="alert-head">📣 Notifications de la direction (3)</div>
+            <div class="alert-row"><div class="dot dot-red"></div>🔴 Mensualité janvier impayée. Merci de régulariser.</div>
+            <div class="alert-row"><div class="dot dot-yellow"></div>⚠️ Paiement partiel décembre reçu — reste 25 000 GNF</div>
+            <div class="alert-row"><div class="dot dot-yellow"></div>🎒 Sortie pédagogique 15 000 GNF — 15 fév.</div>
+          </div>
+          <!-- TABLE -->
+          <div class="table-wrap">
+            <div class="table-heading">Addebiti fatturati</div>
+            <div class="t-head">
+              <span class="th th-fac">Facture</span>
+              <span class="th th-imp">Importo</span>
+              <span class="th th-sta">Stato Pag. ↕</span>
+            </div>
+            <!-- rows -->
+            <div class="t-row"><div class="td-fac"><span class="td-plus">+</span><span class="td-id">2025-001</span></div><div class="td-imp">150k</div><div class="td-sta"><div class="status-dot" style="background:#16a34a"></div><span class="sta-label sta-green">Payé confirmé</span></div></div>
+            <div class="t-row alt"><div class="td-fac"><span class="td-plus">+</span><span class="td-id">2025-002</span></div><div class="td-imp">45k</div><div class="td-sta"><div class="status-dot" style="background:#16a34a"></div><span class="sta-label sta-green">Payé confirmé</span></div></div>
+            <div class="t-row"><div class="td-fac"><span class="td-plus">+</span><span class="td-id">2025-003</span></div><div class="td-imp">45k</div><div class="td-sta"><div class="status-dot" style="background:#16a34a"></div><span class="sta-label sta-green">Payé</span></div></div>
+            <div class="t-row alt"><div class="td-fac"><span class="td-plus">+</span><span class="td-id">2025-004</span></div><div class="td-imp">60k</div><div class="td-sta"><div class="status-dot" style="background:#16a34a"></div><span class="sta-label sta-green">Payé confirmé</span></div></div>
+            <div class="t-row"><div class="td-fac"><span class="td-plus">+</span><span class="td-id">2025-006</span></div><div class="td-imp">45k</div><div class="td-sta"><div class="status-dot" style="background:#eab308"></div><span class="sta-label sta-yellow">En attente</span></div></div>
+            <div class="t-row alt"><div class="td-fac"><span class="td-plus">+</span><span class="td-id">2026-001</span></div><div class="td-imp">45k</div><div class="td-sta"><div class="status-dot" style="background:#dc2626"></div><span class="sta-label sta-red">Non payé</span></div></div>
+            <div class="t-row"><div class="td-fac"><span class="td-plus">+</span><span class="td-id">2026-002</span></div><div class="td-imp">60k</div><div class="td-sta"><div class="status-dot" style="background:#dc2626"></div><span class="sta-label sta-red">Non payé</span></div></div>
+            <div class="t-row alt"><div class="td-fac"><span class="td-plus">+</span><span class="td-id">2026-003</span></div><div class="td-imp">15k</div><div class="td-sta"><div class="status-dot" style="background:#eab308"></div><span class="sta-label sta-yellow">En attente</span></div></div>
+          </div>
+          <!-- Legend -->
+          <div class="legend">
+            <div class="legend-title">Légende :</div>
+            <div class="legend-sep"></div>
+            <div class="legend-item"><div class="legend-dot-big" style="background:#dc2626"></div><div class="legend-lbl">Non payé</div></div>
+            <div class="legend-item"><div class="legend-dot-big" style="background:#eab308"></div><div class="legend-lbl">Paiement en attente</div></div>
+            <div class="legend-item"><div class="legend-dot-big" style="background:#16a34a"></div><div class="legend-lbl">Payé / Payé confirmé</div></div>
+          </div>
+          <!-- Search -->
+          <div class="search-bar">
+            <div class="search-placeholder">Rechercher une facture...</div>
+            <div class="search-btn"><span style="color:#fff;font-size:14px">🔍</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">Accueil</div></div>
+        <div class="nav-item"><div class="nav-icon">📚</div><div class="nav-label">Cours</div></div>
+        <div class="nav-item"><div class="nav-icon">✏️</div><div class="nav-label">Exercices</div></div>
+        <div class="nav-item active"><div class="nav-icon">💰</div><div class="nav-label" style="color:#2563eb">Finances</div></div>
+        <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">Profil</div></div>
+      </div>
+    </div>
+    <div class="phone-label">💰 Finances — Frais</div>
+  </div>
+
+  <!-- ══ PHONE 3: FINANCES — CARRIÈRE ══ -->
+  <div>
+    <div class="phone">
+      <div class="phone-bar"><span>9:41</span><span>📶 🔋</span></div>
+      <div class="screen">
+        <div class="s-header">
+          <h2>💰 Finances</h2>
+          <p>Suivi scolaire · 2025/2026</p>
+        </div>
+        <div class="s-tabs">
+          <div class="s-tab"><div class="s-tab-icon">🧾</div><div class="s-tab-label">Frais</div></div>
+          <div class="s-tab active"><div class="s-tab-icon">🎓</div><div class="s-tab-label" style="color:#2563eb">Carrière</div></div>
+          <div class="s-tab"><div class="s-tab-icon">🎒</div><div class="s-tab-label">Fournitures</div></div>
+        </div>
+        <div class="s-scroll">
+          <!-- Dati personali -->
+          <div class="career-section">
+            <div class="career-toggle">
+              <span class="career-toggle-title">Dati personnali</span>
+              <span class="career-toggle-sub">Voir les détails ▶</span>
+            </div>
+          </div>
+          <!-- Status -->
+          <div class="career-section">
+            <div class="career-toggle">
+              <span class="career-toggle-title">Status de l'élève</span>
+              <span class="career-toggle-sub" style="color:#2563eb">Masquer ▼</span>
+            </div>
+            <div class="career-body">
+              <div class="career-line"><span class="career-key">Année académique</span><span class="career-val">2025/2026</span></div>
+              <div class="career-line"><span class="career-key">Classe</span><span class="career-val">3ème B</span></div>
+              <div class="career-line"><span class="career-key">Date d'inscription</span><span class="career-val">01/09/2025</span></div>
+              <div class="career-line">
+                <span class="career-key">Statut carrière</span>
+                <div class="career-status-row">
+                  <span class="career-val">Actif · Scolarisation</span>
+                  <div class="status-dot" style="background:#16a34a;width:12px;height:12px;border-radius:50%"></div>
+                </div>
+              </div>
+              <div class="career-program">Enseignement Général</div>
+              <div class="career-school">Collège Demo de Conakry</div>
+              <div class="career-link">📅 Emploi du temps</div>
+            </div>
+          </div>
+          <!-- Notes -->
+          <div class="career-section">
+            <div class="career-toggle">
+              <span class="career-toggle-title">Récapitulatif des notes</span>
+            </div>
+            <div class="career-body">
+              <div class="exam-table">
+                <div class="exam-head"><span class="exam-th" style="flex:2">Élément</span><span class="exam-th" style="flex:1;text-align:right">Valeur</span></div>
+                <div class="exam-row"><span class="exam-td" style="flex:2">Évaluations enregistrées</span><span class="exam-td bold" style="flex:1">12</span></div>
+                <div class="exam-row alt"><span class="exam-td" style="flex:2">Évaluations réussies</span><span class="exam-td bold" style="flex:1">10</span></div>
+                <div class="exam-row"><span class="exam-td" style="flex:2">Moyenne générale</span><span class="exam-td bold" style="flex:1;color:#2563eb">14.2/20</span></div>
+                <div class="exam-row alt"><span class="exam-td" style="flex:2">Classement</span><span class="exam-td bold" style="flex:1">5ème/32</span></div>
+                <div class="exam-row"><span class="exam-td" style="flex:2">Absences</span><span class="exam-td bold" style="flex:1">2 j</span></div>
+                <div class="exam-row alt"><span class="exam-td" style="flex:2">Conduite</span><span class="exam-td bold" style="flex:1;color:#16a34a">Très bien</span></div>
+              </div>
+              <div class="libretto-link">📄 Voir mon bulletin de notes</div>
+            </div>
+          </div>
+          <!-- Pannello -->
+          <div class="career-section">
+            <div class="career-toggle"><span class="career-toggle-title">Panneau de contrôle</span></div>
+            <div class="control-grid">
+              <div class="control-card"><div class="control-icon">📋</div><div class="control-label">Dossier scolaire</div></div>
+              <div class="control-card"><div class="control-icon">📅</div><div class="control-label">Emploi du temps</div></div>
+              <div class="control-card"><div class="control-icon">📝</div><div class="control-label">Bulletins</div></div>
+              <div class="control-card"><div class="control-icon">💰</div><div class="control-label">Mes paiements</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="bottom-nav">
+        <div class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">Accueil</div></div>
+        <div class="nav-item"><div class="nav-icon">📚</div><div class="nav-label">Cours</div></div>
+        <div class="nav-item"><div class="nav-icon">✏️</div><div class="nav-label">Exercices</div></div>
+        <div class="nav-item active"><div class="nav-icon">💰</div><div class="nav-label" style="color:#2563eb">Finances</div></div>
+        <div class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">Profil</div></div>
+      </div>
+    </div>
+    <div class="phone-label">🎓 Carrière élève</div>
+  </div>
+
+</div><!-- end phones -->
+
+<div style="margin-top:32px;background:#1e3a5f;border-radius:12px;padding:16px 24px;max-width:900px;width:100%">
+  <div style="color:#93c5fd;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">📌 Qui saisit les données ?</div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px">
+    <div style="background:#1e40af;border-radius:8px;padding:10px 14px;flex:1;min-width:200px">
+      <div style="color:#60a5fa;font-size:11px;font-weight:700;margin-bottom:4px">👩‍💼 DIRECTION</div>
+      <div style="color:#bfdbfe;font-size:11px;line-height:1.6">• Frais scolaires (montants, statuts)<br>• Notifications de paiement<br>• Transport / Cantine<br>• Liste des fournitures<br>• Sorties pédagogiques</div>
+    </div>
+    <div style="background:#1e3a5f22;border:1px solid #1e40af;border-radius:8px;padding:10px 14px;flex:1;min-width:200px">
+      <div style="color:#34d399;font-size:11px;font-weight:700;margin-bottom:4px">👨‍🏫 PROFESSEURS</div>
+      <div style="color:#bfdbfe;font-size:11px;line-height:1.6">• Résumés de cours<br>• Exercices &amp; corrections<br>• Notes et évaluations<br>• Absences<br>• Conduite / Comportement</div>
+    </div>
+    <div style="background:#1e3a5f22;border:1px solid #1e40af;border-radius:8px;padding:10px 14px;flex:1;min-width:200px">
+      <div style="color:#fbbf24;font-size:11px;font-weight:700;margin-bottom:4px">👩‍🎓 ÉLÈVE (lecture seule)</div>
+      <div style="color:#bfdbfe;font-size:11px;line-height:1.6">• Consulte tout<br>• Coche ses fournitures<br>• Pose des questions à l'IA<br>• Regarde les vidéos YouTube<br>• Fait les exercices</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

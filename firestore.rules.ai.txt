@@ -1,0 +1,125 @@
+// ============================================================
+// REGLES FIRESTORE POUR LE SYSTEME IA
+// ============================================================
+// A integrer dans votre firestore.rules existant
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --------------------------------------------------------
+    // FONCTIONS HELPERS
+    // --------------------------------------------------------
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isTeacher() {
+      return isAuthenticated() && getUserRole() in ['teacher', 'admin'];
+    }
+
+    function isStudent() {
+      return isAuthenticated() && getUserRole() == 'student';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // --------------------------------------------------------
+    // SOLUTIONS DES PROFESSEURS
+    // Les eleves ne peuvent PAS lire les solutions directement
+    // Seul le service IA (via Cloud Functions = admin SDK) y accede
+    // --------------------------------------------------------
+    match /teacherSolutions/{solutionId} {
+      // Professeurs: CRUD complet sur leurs propres solutions
+      allow create: if isTeacher() &&
+                       request.resource.data.professorId == request.auth.uid;
+
+      allow update: if isTeacher() &&
+                       resource.data.professorId == request.auth.uid;
+
+      allow delete: if isTeacher() &&
+                       resource.data.professorId == request.auth.uid;
+
+      // Les professeurs peuvent lire toutes les solutions de leur cours
+      allow read: if isTeacher();
+
+      // Les eleves ne peuvent JAMAIS lire les solutions directement
+      // (seules les Cloud Functions avec admin SDK y accedent)
+      // allow read: if false; // Implicite car pas de allow pour les students
+    }
+
+    // Chunks de solutions (pour RAG - meme protection)
+    match /solutionChunks/{chunkId} {
+      allow read, write: if isTeacher();
+      // Eleves: acces refuse (Cloud Functions admin SDK contourne cette regle)
+    }
+
+    // --------------------------------------------------------
+    // SOUMISSIONS DES ELEVES
+    // --------------------------------------------------------
+    match /submissions/{submissionId} {
+      // Eleve peut creer sa propre soumission
+      allow create: if isAuthenticated() &&
+                       request.resource.data.studentId == request.auth.uid;
+
+      // Eleve peut lire ses propres soumissions
+      // Professeur peut lire les soumissions de ses cours
+      allow read: if isOwner(resource.data.studentId) || isTeacher();
+
+      // Personne ne peut modifier une soumission une fois envoyee
+      // (seules les Cloud Functions admin SDK mettent a jour le status/gradingResult)
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // --------------------------------------------------------
+    // RESULTATS DE CORRECTION IA
+    // --------------------------------------------------------
+    match /gradingResults/{resultId} {
+      // L'eleve peut lire sa propre correction
+      allow read: if isOwner(resource.data.studentId) || isTeacher();
+
+      // Seules les Cloud Functions (admin SDK) peuvent ecrire
+      allow write: if false;
+    }
+
+    // --------------------------------------------------------
+    // HISTORIQUE ELEVE (pour analyse de progression)
+    // --------------------------------------------------------
+    match /studentHistory/{historyId} {
+      // L'eleve voit son propre historique
+      allow read: if isOwner(resource.data.studentId) || isTeacher();
+
+      // Seules les Cloud Functions ecrivent dans l'historique
+      allow write: if false;
+    }
+
+    // --------------------------------------------------------
+    // INDICES UTILISES
+    // --------------------------------------------------------
+    match /hintUsage/{hintId} {
+      // L'eleve peut voir les indices qu'il a demandes
+      allow read: if isOwner(resource.data.studentId) || isTeacher();
+
+      // Seules les Cloud Functions peuvent creer des entrees d'indices
+      allow write: if false;
+    }
+
+    // --------------------------------------------------------
+    // ANALYSES DE PROGRESSION
+    // --------------------------------------------------------
+    match /progressAnalyses/{analysisId} {
+      // L'eleve voit ses analyses
+      allow read: if isOwner(resource.data.studentId) || isTeacher();
+
+      // Seules les Cloud Functions ecrivent
+      allow write: if false;
+    }
+  }
+}

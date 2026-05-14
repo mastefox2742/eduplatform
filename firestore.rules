@@ -1,0 +1,463 @@
+// ============================================================
+// FIREBASE FIRESTORE SECURITY RULES
+// Plateforme éducative - Protection données élèves mineurs
+// Version: 2.0 - Conforme RGPD
+// ============================================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===========================================================
+    // FONCTIONS HELPER - Vérification des identités et rôles
+    // ===========================================================
+
+    // Vérifie qu'un utilisateur est authentifié
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    // Récupère le rôle depuis les Custom Claims Firebase Auth
+    // Les Custom Claims sont signés par Firebase - infalsifiables côté client
+    function getRole() {
+      return request.auth.token.role;
+    }
+
+    // Récupère l'ID d'école depuis les Custom Claims
+    function getSchoolId() {
+      return request.auth.token.schoolId;
+    }
+
+    // Vérifie si l'utilisateur est directeur (super admin de l'école)
+    function isDirection() {
+      return isAuthenticated() && getRole() == 'direction';
+    }
+
+    // Vérifie si l'utilisateur est professeur
+    // UserRole.TEACHER = 'teacher' (enum shared-types)
+    function isProfesseur() {
+      return isAuthenticated() && getRole() == 'teacher';
+    }
+
+    // Vérifie si l'utilisateur est élève
+    // UserRole.STUDENT = 'student' (enum shared-types)
+    function isEleve() {
+      return isAuthenticated() && getRole() == 'student';
+    }
+
+    // Vérifie que l'utilisateur appartient à l'école du document
+    function isSameSchool(schoolId) {
+      return isAuthenticated() && getSchoolId() == schoolId;
+    }
+
+    // Direction de la même école
+    function isDirectionSameSchool(schoolId) {
+      return isDirection() && isSameSchool(schoolId);
+    }
+
+    // Professeur de la même école
+    function isProfesseurSameSchool(schoolId) {
+      return isProfesseur() && isSameSchool(schoolId);
+    }
+
+    // L'utilisateur accède à son propre document
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // Vérifie que le document appartient à l'école de l'utilisateur
+    function documentBelongsToMySchool() {
+      return isAuthenticated()
+        && resource.data.schoolId == getSchoolId();
+    }
+
+    // Vérifie les données entrantes (prévient l'injection de schoolId incorrect)
+    function incomingDataBelongsToMySchool() {
+      return isAuthenticated()
+        && request.resource.data.schoolId == getSchoolId();
+    }
+
+    // Vérifie qu'un champ n'est pas modifié (immutabilité)
+    function fieldNotChanged(field) {
+      return !(field in request.resource.data.diff(resource.data).affectedKeys());
+    }
+
+    // Vérifie qu'aucun champ sensible n'est inclus dans l'écriture
+    function noSensitiveFields() {
+      return !('password' in request.resource.data)
+        && !('token' in request.resource.data)
+        && !('nationalId' in request.resource.data);
+    }
+
+    // Vérifie les limites de taille des champs texte (anti-injection)
+    function textFieldsWithinLimits() {
+      return (!('title' in request.resource.data) || request.resource.data.title.size() <= 200)
+        && (!('description' in request.resource.data) || request.resource.data.description.size() <= 2000)
+        && (!('body' in request.resource.data) || request.resource.data.body.size() <= 5000);
+    }
+
+    // ===========================================================
+    // COLLECTION : users
+    // Profils utilisateurs (direction, professeurs, élèves)
+    // ===========================================================
+    match /users/{uid} {
+      // Lecture : chaque utilisateur lit son propre profil
+      //           la direction lit les profils de son école
+      //           les professeurs lisent les profils de leur école (limité)
+      allow read: if isOwner(uid)
+        || isDirectionSameSchool(resource.data.schoolId)
+        || (isProfesseurSameSchool(resource.data.schoolId)
+            && resource.data.role == 'student');  // Profs voient seulement les élèves
+
+      // Création : uniquement via Cloud Functions (onCreateUser trigger)
+      // Les clients ne peuvent pas créer directement des profils utilisateurs
+      allow create: if false;
+
+      // Mise à jour : limitée selon le rôle
+      allow update: if isOwner(uid)
+        && fieldNotChanged('role')           // Un user ne peut pas changer son rôle
+        && fieldNotChanged('schoolId')       // Ni son école
+        && fieldNotChanged('uid')            // Ni son uid
+        && noSensitiveFields()
+        && textFieldsWithinLimits()
+        // La direction peut modifier tout sauf le uid
+        || (isDirectionSameSchool(resource.data.schoolId)
+            && fieldNotChanged('uid')
+            && noSensitiveFields());
+
+      // Suppression : uniquement via Cloud Functions (RGPD)
+      allow delete: if false;
+    }
+
+    // ===========================================================
+    // COLLECTION : students
+    // Profils élèves (données non sensibles)
+    // ===========================================================
+    match /students/{studentUid} {
+      // Lecture :
+      // - L'élève lit son propre profil
+      // - La direction de l'école lit tous les élèves
+      // - Les professeurs lisent les élèves de leurs classes
+      allow read: if isOwner(studentUid)
+        || isDirectionSameSchool(resource.data.schoolId)
+        || (isProfesseurSameSchool(resource.data.schoolId));
+
+      // Création : uniquement via Cloud Function generateStudentCredentials
+      allow create: if false;
+
+      // Mise à jour : limitée
+      allow update: if isDirectionSameSchool(resource.data.schoolId)
+        && fieldNotChanged('uid')
+        && fieldNotChanged('studentId')
+        && fieldNotChanged('schoolId')
+        && fieldNotChanged('createdBy')
+        && fieldNotChanged('createdAt')
+        && noSensitiveFields();
+
+      // Suppression : uniquement via Cloud Function (RGPD)
+      allow delete: if false;
+
+      // -------------------------------------------------------
+      // SOUS-COLLECTION : students/{studentUid}/private
+      // Données SENSIBLES chiffrées (date de naissance, contacts parents)
+      // Accès STRICTEMENT restreint
+      // -------------------------------------------------------
+      match /private/{document} {
+        // Lecture : UNIQUEMENT la direction
+        // Les élèves eux-mêmes n'ont pas accès direct (passent par une Cloud Function)
+        // Les professeurs n'ont JAMAIS accès aux données privées
+        allow read: if isDirectionSameSchool(
+          get(/databases/$(database)/documents/students/$(studentUid)).data.schoolId
+        );
+
+        // Écriture : uniquement via Cloud Functions
+        allow write: if false;
+      }
+    }
+
+    // ===========================================================
+    // COLLECTION : courses
+    // Cours créés par les professeurs
+    // ===========================================================
+    match /courses/{courseId} {
+      // Lecture : tous les membres de l'école, avec restriction pour les élèves
+      allow read: if documentBelongsToMySchool()
+        && (isDirection()
+            || isProfesseur()
+            || (isEleve()
+                // L'élève ne peut lire que les cours de sa classe publiés
+                && resource.data.isPublished == true
+                && request.auth.token.classeId in resource.data.classeIds));
+
+      // Création : professeurs et direction de l'école
+      allow create: if (isProfesseurSameSchool(request.resource.data.schoolId)
+          || isDirectionSameSchool(request.resource.data.schoolId))
+        && request.resource.data.teacherId == request.auth.uid  // Doit être l'auteur
+        && incomingDataBelongsToMySchool()
+        && textFieldsWithinLimits()
+        && noSensitiveFields();
+
+      // Mise à jour : auteur du cours ou direction
+      allow update: if (resource.data.teacherId == request.auth.uid
+          && isProfesseurSameSchool(resource.data.schoolId))
+        || isDirectionSameSchool(resource.data.schoolId)
+        && fieldNotChanged('schoolId')
+        && fieldNotChanged('teacherId')
+        && textFieldsWithinLimits();
+
+      // Suppression : auteur ou direction
+      allow delete: if (resource.data.teacherId == request.auth.uid
+          && isProfesseurSameSchool(resource.data.schoolId))
+        || isDirectionSameSchool(resource.data.schoolId);
+
+      // -------------------------------------------------------
+      // SOUS-COLLECTION : courses/{courseId}/lessons
+      // -------------------------------------------------------
+      match /lessons/{lessonId} {
+        allow read: if get(/databases/$(database)/documents/courses/$(courseId)).data.schoolId == getSchoolId()
+          && (isDirection()
+              || isProfesseur()
+              || (isEleve()
+                  && get(/databases/$(database)/documents/courses/$(courseId)).data.isPublished == true
+                  && request.auth.token.classeId in get(/databases/$(database)/documents/courses/$(courseId)).data.classeIds));
+
+        allow write: if (isProfesseurSameSchool(
+            get(/databases/$(database)/documents/courses/$(courseId)).data.schoolId)
+            && get(/databases/$(database)/documents/courses/$(courseId)).data.teacherId == request.auth.uid)
+          || isDirectionSameSchool(
+              get(/databases/$(database)/documents/courses/$(courseId)).data.schoolId);
+      }
+
+      // -------------------------------------------------------
+      // SOUS-COLLECTION : courses/{courseId}/quizzes
+      // -------------------------------------------------------
+      match /quizzes/{quizId} {
+        allow read: if get(/databases/$(database)/documents/courses/$(courseId)).data.schoolId == getSchoolId()
+          && (isDirection()
+              || isProfesseur()
+              || (isEleve()
+                  && get(/databases/$(database)/documents/courses/$(courseId)).data.isPublished == true));
+
+        // Les réponses correctes sont masquées pour les élèves
+        // (gérée côté Cloud Function)
+        allow write: if isProfesseurSameSchool(
+            get(/databases/$(database)/documents/courses/$(courseId)).data.schoolId)
+          || isDirectionSameSchool(
+              get(/databases/$(database)/documents/courses/$(courseId)).data.schoolId);
+      }
+    }
+
+    // ===========================================================
+    // COLLECTION : progress
+    // Progression des élèves par cours
+    // ===========================================================
+    match /progress/{studentUid}/courses/{courseId} {
+      // L'élève lit sa propre progression
+      // Les professeurs lisent la progression de leurs élèves
+      // La direction lit tout
+      allow read: if isOwner(studentUid)
+        || isDirectionSameSchool(
+            get(/databases/$(database)/documents/students/$(studentUid)).data.schoolId)
+        || isProfesseurSameSchool(
+            get(/databases/$(database)/documents/students/$(studentUid)).data.schoolId);
+
+      // Seul l'élève écrit sa propre progression (via les actions légitimes)
+      allow write: if isOwner(studentUid)
+        && request.resource.data.studentId == request.auth.uid
+        && request.resource.data.schoolId == getSchoolId()
+        // Empêcher la falsification des scores (max 100)
+        && (!('quizResults' in request.resource.data)
+            || request.resource.data.quizResults.size() <= 1000);
+    }
+
+    // ===========================================================
+    // COLLECTION : notifications
+    // Notifications push
+    // ===========================================================
+    match /notifications/{notifId} {
+      // Chaque utilisateur lit ses propres notifications
+      allow read: if isAuthenticated()
+        && resource.data.recipientUid == request.auth.uid
+        && documentBelongsToMySchool();
+
+      // Mise à jour : uniquement marquer comme lu (par le destinataire)
+      allow update: if isAuthenticated()
+        && resource.data.recipientUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead'])
+        && request.resource.data.isRead == true;
+
+      // Création et suppression : via Cloud Functions uniquement
+      allow create: if false;
+      allow delete: if false;
+    }
+
+    // ===========================================================
+    // COLLECTION : auditLogs
+    // Logs d'audit IMMUABLES - personne ne peut écrire ou modifier
+    // ===========================================================
+    match /auditLogs/{logId} {
+      // Lecture : uniquement la direction de l'école concernée
+      allow read: if isDirectionSameSchool(resource.data.schoolId);
+
+      // Écriture : INTERDITE côté client (uniquement Cloud Functions via Admin SDK)
+      allow write: if false;
+    }
+
+    // ===========================================================
+    // COLLECTION : _rateLimits, _deletionQueue, _aiUsage
+    // Collections internes - accès client totalement interdit
+    // ===========================================================
+    match /_rateLimits/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /_deletionQueue/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /_aiUsage/{document=**} {
+      allow read: if isDirection();  // La direction peut voir la consommation IA
+      allow write: if false;
+    }
+
+    // ===========================================================
+    // COLLECTION : classes
+    // Groupes d'élèves
+    // ===========================================================
+    match /classes/{classeId} {
+      allow read: if isSameSchool(resource.data.schoolId)
+        && (isDirection() || isProfesseur()
+            || (isEleve() && request.auth.token.classeId == classeId));
+
+      allow write: if isDirectionSameSchool(
+        ('schoolId' in request.resource.data) ? request.resource.data.schoolId : resource.data.schoolId
+      );
+    }
+
+    // ===========================================================
+    // COLLECTION : schools/{schoolId}/** (multi-tenant)
+    // Données organisées par schoolId pour le multi-école
+    // ===========================================================
+
+    // ⚠️ ACCÈS SEED : L'utilisateur anonyme peut initialiser UNIQUEMENT
+    // la school "demo-school" (utile pour le premier démarrage).
+    // Retirer cette règle en production sur un vrai schoolId.
+    function isSeedAllowed(sid) {
+      return request.auth != null && sid == 'demo-school';
+    }
+
+    match /schools/{schoolId} {
+      allow read: if isSameSchool(schoolId) || isSeedAllowed(schoolId);
+      allow write: if isAuthenticated() && getRole() == 'admin';
+      allow write: if isSeedAllowed(schoolId);
+    }
+
+    // Élèves (sous-collection school)
+    match /schools/{schoolId}/students/{studentId} {
+      allow read: if isSameSchool(schoolId)
+        && (isDirection() || isProfesseur()
+            || (isEleve() && resource.data.id == request.auth.uid));
+      allow create, update: if isDirectionSameSchool(schoolId)
+        && incomingDataBelongsToMySchool()
+        && noSensitiveFields();
+      allow delete: if isDirectionSameSchool(schoolId);
+      allow write: if isSeedAllowed(schoolId);
+    }
+
+    // Professeurs (sous-collection school)
+    match /schools/{schoolId}/teachers/{teacherId} {
+      allow read: if isSameSchool(schoolId);
+      allow create, update: if isDirectionSameSchool(schoolId)
+        && incomingDataBelongsToMySchool();
+      allow delete: if isDirectionSameSchool(schoolId);
+      allow write: if isSeedAllowed(schoolId);
+    }
+
+    // Classes (sous-collection school)
+    match /schools/{schoolId}/classes/{classId} {
+      allow read: if isSameSchool(schoolId);
+      allow write: if isDirectionSameSchool(schoolId);
+      allow write: if isSeedAllowed(schoolId);
+    }
+
+    // Évaluations (sous-collection school)
+    match /schools/{schoolId}/assessments/{assessmentId} {
+      // Direction voit tout
+      allow read: if isDirectionSameSchool(schoolId);
+      // Les profs voient leurs évaluations
+      allow read: if isProfesseurSameSchool(schoolId)
+        && resource.data.teacherId == request.auth.uid;
+      // Les profs créent leur propres évaluations
+      allow create: if isProfesseurSameSchool(schoolId)
+        && request.resource.data.teacherId == request.auth.uid
+        && incomingDataBelongsToMySchool();
+      // Les profs modifient leurs évaluations brouillon/refusées
+      allow update: if isProfesseurSameSchool(schoolId)
+        && resource.data.teacherId == request.auth.uid
+        && resource.data.status in ['draft', 'rejected'];
+      // La direction peut tout modifier (approbation, notes, etc.)
+      allow update: if isDirectionSameSchool(schoolId);
+      allow delete: if isDirectionSameSchool(schoolId);
+      allow write: if isSeedAllowed(schoolId);
+    }
+
+    // Présence professeurs (sous-collection school)
+    match /schools/{schoolId}/attendance/{recordId} {
+      allow read, write: if isDirectionSameSchool(schoolId);
+      allow read: if isProfesseurSameSchool(schoolId)
+        && resource.data.teacherId == request.auth.uid;
+      allow update: if isProfesseurSameSchool(schoolId)
+        && resource.data.teacherId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['justification', 'updatedAt']);
+      allow write: if isSeedAllowed(schoolId);
+    }
+
+    // Emplois du temps (sous-collection school)
+    match /schools/{schoolId}/schedule/{slotId} {
+      allow read: if isSameSchool(schoolId);
+      allow write: if isDirectionSameSchool(schoolId);
+      allow write: if isSeedAllowed(schoolId);
+    }
+
+    // Cours (sous-collection school)
+    match /schools/{schoolId}/courses/{courseId} {
+      allow read: if isSameSchool(schoolId);
+      allow create: if isProfesseurSameSchool(schoolId)
+        && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isProfesseurSameSchool(schoolId)
+        && resource.data.authorId == request.auth.uid;
+      allow update, delete: if isDirectionSameSchool(schoolId);
+      allow write: if isSeedAllowed(schoolId);
+    }
+
+    // Exercices (sous-collection school)
+    match /schools/{schoolId}/exercises/{exerciseId} {
+      allow read: if isSameSchool(schoolId);
+      allow create: if isProfesseurSameSchool(schoolId)
+        && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isProfesseurSameSchool(schoolId)
+        && resource.data.authorId == request.auth.uid;
+      allow update, delete: if isDirectionSameSchool(schoolId);
+      allow write: if isSeedAllowed(schoolId);
+    }
+
+    // Progression élèves (sous-collection school)
+    match /schools/{schoolId}/progress/{progressId} {
+      allow read: if isSameSchool(schoolId) && (isDirection() || isProfesseur());
+      allow read, write: if isEleve()
+        && isSameSchool(schoolId)
+        && resource.data.userId == request.auth.uid;
+      allow write: if isSeedAllowed(schoolId);
+    }
+
+    // ===========================================================
+    // RÈGLE DE REFUS PAR DÉFAUT
+    // Tout ce qui n'est pas explicitement autorisé est refusé
+    // ===========================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -6,7 +6,7 @@
  *   EXPO_PUBLIC_GEMINI_API_KEY=AIza...
  */
 
-const MODEL   = 'gemini-1.5-flash'
+const MODEL   = 'gemini-2.0-flash'
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
 
 // ── Types ────────────────────────────────────────────────────────────────────

@@ -72,7 +72,7 @@ const EXAMS: ExamConfig[] = [
       { doc: 'Certificat médical de moins de 3 mois',                       obligatoire: false, note: 'Recommandé' },
     ],
     frais: '500 FCFA',
-    ministereUrl: 'http://www.men.cg',
+    ministereUrl: 'https://inscription.e-meppsa.net/',
   },
   {
     id:        'BEPC',
@@ -105,7 +105,7 @@ const EXAMS: ExamConfig[] = [
       { doc: 'Autorisation parentale (si élève mineur)',                     obligatoire: false, note: 'Si moins de 18 ans' },
     ],
     frais: '1 500 FCFA',
-    ministereUrl: 'https://dexco.cg',
+    ministereUrl: 'https://inscription.e-meppsa.net/',
   },
   {
     id:        'BAC',
@@ -141,7 +141,7 @@ const EXAMS: ExamConfig[] = [
       { doc: 'Autorisation parentale notariée (si mineur)',                    obligatoire: false, note: 'Si moins de 18 ans' },
     ],
     frais: '3 000 FCFA',
-    ministereUrl: 'https://dexco.cg',
+    ministereUrl: 'https://inscription.e-meppsa.net/',
   },
 ]
 

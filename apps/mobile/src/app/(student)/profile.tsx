@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '@/hooks/useAuth'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { BurgerMenu } from '@/components/ui/BurgerMenu'
 
 interface MenuItem {
   icon:    React.ComponentProps<typeof Ionicons>['name']
@@ -93,6 +94,10 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Barre de nav */}
+      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.white }}>
+        <BurgerMenu iconColor={colors.gray[700]} />
+      </View>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Avatar & nom */}
         <View style={styles.hero}>

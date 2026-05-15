@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { BurgerMenu } from '@/components/ui/BurgerMenu'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -282,8 +283,11 @@ export default function FinancesScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>💰 Finances</Text>
-        <Text style={styles.headerSub}>Suivi scolaire · {STUDENT_INFO.year}</Text>
+        <View>
+          <Text style={styles.headerTitle}>💰 Finances</Text>
+          <Text style={styles.headerSub}>Suivi scolaire · {STUDENT_INFO.year}</Text>
+        </View>
+        <BurgerMenu iconColor={colors.gray[700]} />
       </View>
 
       {/* Tabs */}
@@ -600,6 +604,7 @@ const styles = StyleSheet.create({
   scrollContent:{ padding: spacing.md, gap: spacing.md, paddingBottom: 40 },
 
   header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingTop:        spacing.md,
     paddingBottom:     spacing.sm,

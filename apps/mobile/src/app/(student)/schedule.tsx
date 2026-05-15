@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { BurgerMenu } from '@/components/ui/BurgerMenu'
 
 const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
 const FULL_DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
@@ -56,8 +57,11 @@ export default function ScheduleScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Emploi du temps</Text>
-        <Text style={styles.subtitle}>Semaine en cours</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Emploi du temps</Text>
+          <Text style={styles.subtitle}>Semaine en cours</Text>
+        </View>
+        <BurgerMenu iconColor={colors.gray[700]} />
       </View>
 
       {/* Sélecteur de jour */}
@@ -125,6 +129,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
   header: {
+    flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingTop:        spacing.md,
     paddingBottom:     spacing.sm,

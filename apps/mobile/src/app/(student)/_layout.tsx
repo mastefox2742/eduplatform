@@ -26,14 +26,7 @@ export default function StudentLayout() {
         headerShown: false,
         tabBarActiveTintColor:   colors.primary,
         tabBarInactiveTintColor: colors.gray[400],
-        tabBarStyle: {
-          backgroundColor:  colors.white,
-          borderTopColor:   colors.gray[100],
-          borderTopWidth:   1,
-          paddingTop:       6,
-          paddingBottom:    8,
-          height:           70,
-        },
+        tabBarStyle: { display: 'none' },
         tabBarLabelStyle: {
           fontSize:   10,
           fontWeight: '600',

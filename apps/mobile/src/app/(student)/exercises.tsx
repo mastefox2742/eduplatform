@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { AIChat } from '@/components/ui/AIChat'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { BurgerMenu } from '@/components/ui/BurgerMenu'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -527,8 +528,11 @@ export default function ExercisesScreen() {
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>✏️ Exercices</Text>
-        <Text style={styles.headerSub}>Entraîne-toi et soumets tes solutions</Text>
+        <View>
+          <Text style={styles.headerTitle}>✏️ Exercices</Text>
+          <Text style={styles.headerSub}>Entraîne-toi et soumets tes solutions</Text>
+        </View>
+        <BurgerMenu iconColor={colors.gray[700]} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
@@ -649,6 +653,7 @@ const styles = StyleSheet.create({
   scroll:      { padding: spacing.md, gap: spacing.sm, paddingBottom: 40 },
 
   header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.sm,
     backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.gray[100],
   },

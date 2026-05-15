@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { BurgerMenu } from '@/components/ui/BurgerMenu'
 
 const FILTERS = ['Tout', 'Absences', 'Retards', 'Justifiées']
 
@@ -60,8 +61,11 @@ export default function AbsencesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Absences & Retards</Text>
-        <Text style={styles.subtitle}>Année 2025-2026</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Absences & Retards</Text>
+          <Text style={styles.subtitle}>Année 2025-2026</Text>
+        </View>
+        <BurgerMenu iconColor={colors.gray[700]} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -174,6 +178,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
   header: {
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: colors.white,
     paddingHorizontal: spacing.lg,
     paddingTop:        spacing.md,

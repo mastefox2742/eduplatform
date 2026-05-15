@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useState } from 'react'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { BurgerMenu } from '@/components/ui/BurgerMenu'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Course {
@@ -204,8 +205,11 @@ export default function StudentCoursesScreen() {
           <Text style={styles.headerTitle}>📚 Mes Cours</Text>
           <Text style={styles.headerSub}>{readCount}/{courses.length} cours lus</Text>
         </View>
-        <View style={styles.progressCircle}>
-          <Text style={styles.progressPct}>{Math.round(readCount / courses.length * 100)}%</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View style={styles.progressCircle}>
+            <Text style={styles.progressPct}>{Math.round(readCount / courses.length * 100)}%</Text>
+          </View>
+          <BurgerMenu iconColor={colors.gray[700]} />
         </View>
       </View>
 

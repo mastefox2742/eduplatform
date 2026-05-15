@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { BurgerMenu } from '@/components/ui/BurgerMenu'
 
 const TRIMESTERS = ['Trimestre 1', 'Trimestre 2', 'Trimestre 3']
 
@@ -112,7 +113,10 @@ export default function GradesScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Bulletin de notes</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingTop: spacing.sm }}>
+          <Text style={styles.title}>Bulletin de notes</Text>
+          <BurgerMenu iconColor={colors.gray[700]} />
+        </View>
 
         {/* Sélecteur trimestre */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.trimesterScroll}>

@@ -5,9 +5,10 @@
 import { useState, useRef } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Modal, SafeAreaView, StatusBar, Image, ActivityIndicator,
+  Modal, StatusBar, Image, ActivityIndicator,
   Alert, TextInput,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import * as ImagePicker from 'expo-image-picker'
 import { AIChat } from '@/components/ui/AIChat'
@@ -521,8 +522,8 @@ export default function ExercisesScreen() {
     : 0
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
 
       {/* Header */}
       <View style={styles.header}>

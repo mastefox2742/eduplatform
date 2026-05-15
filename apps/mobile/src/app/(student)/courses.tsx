@@ -290,8 +290,8 @@ const styles = StyleSheet.create({
   searchInput:  { flex: 1, fontSize: fontSize.sm, color: colors.gray[900] },
 
   filterRow:    { flexGrow: 0, marginBottom: spacing.sm },
-  filterChip:   { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full, backgroundColor: colors.gray[100] },
-  filterText:   { fontSize: fontSize.xs, color: colors.gray[600], fontWeight: fontWeight.medium },
+  filterChip:   { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.full, backgroundColor: colors.white, borderWidth: 1.5, borderColor: colors.gray[300] },
+  filterText:   { fontSize: fontSize.xs, color: colors.gray[700], fontWeight: fontWeight.semibold },
 
   card:         { flexDirection: 'row', backgroundColor: colors.white, borderRadius: radius.lg, overflow: 'hidden', ...shadow.sm },
   cardLeft:     { width: 72, alignItems: 'center', justifyContent: 'center', padding: spacing.sm },

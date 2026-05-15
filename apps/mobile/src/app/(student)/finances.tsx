@@ -5,8 +5,9 @@
 import { useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Modal, SafeAreaView, StatusBar,
+  Modal, StatusBar,
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
 
@@ -276,8 +277,8 @@ export default function FinancesScreen() {
     setSupplies(prev => prev.map(s => s.id === id ? { ...s, acquired: !s.acquired } : s))
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
 
       {/* Header */}
       <View style={styles.header}>

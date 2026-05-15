@@ -17,6 +17,7 @@ const SettingsPage          = lazy(() => import('@/pages/direction/SettingsPage'
 const AssessmentsPage       = lazy(() => import('@/pages/direction/AssessmentsPage').then(m => ({ default: m.AssessmentsPage })))
 const TeacherAttendancePage = lazy(() => import('@/pages/direction/TeacherAttendancePage').then(m => ({ default: m.TeacherAttendancePage })))
 const SchedulePage          = lazy(() => import('@/pages/direction/SchedulePage').then(m => ({ default: m.SchedulePage })))
+const ExamRegistrationPage   = lazy(() => import('@/pages/direction/ExamRegistrationPage').then(m => ({ default: m.ExamRegistrationPage })))
 const TeacherAssessmentsPage = lazy(() => import('@/pages/teacher/AssessmentsPage').then(m => ({ default: m.TeacherAssessmentsPage })))
 const TeacherSchedulePage   = lazy(() => import('@/pages/teacher/SchedulePage').then(m => ({ default: m.TeacherSchedulePage })))
 const TeacherClassesPage    = lazy(() => import('@/pages/teacher/ClassesPage').then(m => ({ default: m.TeacherClassesPage })))
@@ -120,6 +121,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
             <PageWrapper><SchedulePage /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'direction/exams',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
+            <PageWrapper><ExamRegistrationPage /></PageWrapper>
           </ProtectedRoute>
         ),
       },

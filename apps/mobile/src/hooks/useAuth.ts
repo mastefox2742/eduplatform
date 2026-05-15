@@ -55,7 +55,7 @@ export function useAuth(): AuthState & {
               email:       firebaseUser.email ?? '',
               displayName: firebaseUser.displayName ?? firebaseUser.email ?? '',
               role:        claims.role as UserProfile['role'],
-              schoolId:    (claims.schoolId ?? 'demo') as string,
+              schoolId:    claims.schoolId as string,
               isActive:    true,
               createdAt:   Date.now(),
               updatedAt:   Date.now(),

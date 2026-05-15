@@ -11,7 +11,11 @@ import { logout } from '@/hooks/useAuth'
 import { Avatar } from '@/components/ui/Avatar'
 import { UserRole } from '@school/shared-types'
 
-const DEMO_ROLE = new URLSearchParams(window.location.search).get('demo') as UserRole | null
+// Mode démo uniquement si la variable d'env est explicitement activée (jamais en prod)
+const DEMO_ALLOWED = import.meta.env.VITE_ALLOW_DEMO_MODE === 'true'
+const DEMO_ROLE = DEMO_ALLOWED
+  ? (new URLSearchParams(window.location.search).get('demo') as UserRole | null)
+  : null
 const DEMO_PROFILES: Record<string, { displayName: string; role: UserRole }> = {
   direction: { displayName: 'Marie Kourouma', role: UserRole.DIRECTION },
   teacher:   { displayName: 'M. Jean Leblanc', role: UserRole.TEACHER },

@@ -9,11 +9,12 @@ import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '@/hooks/useAuth'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
 
-const DEMO_ACCOUNTS = [
+// Comptes de démo uniquement visibles en mode développement (jamais en production)
+const DEMO_ACCOUNTS = __DEV__ ? [
   { label: '👔 Direction', email: 'direction@demo.fr', password: 'demo1234' },
   { label: '📚 Professeur', email: 'prof@demo.fr',     password: 'demo1234' },
   { label: '🎓 Élève',     email: 'eleve@demo.fr',    password: 'demo1234' },
-]
+] : []
 
 export default function LoginScreen() {
   const { login } = useAuth()

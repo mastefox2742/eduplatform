@@ -340,11 +340,13 @@ service cloud.firestore {
     // Données organisées par schoolId pour le multi-école
     // ===========================================================
 
-    // ⚠️ ACCÈS SEED : L'utilisateur anonyme peut initialiser UNIQUEMENT
-    // la school "demo-school" (utile pour le premier démarrage).
-    // Retirer cette règle en production sur un vrai schoolId.
+    // ⚠️ ACCÈS SEED : Restreint aux admins sur la school "demo-school" UNIQUEMENT.
+    // N'autorise jamais un utilisateur non-admin, même sur demo-school.
+    // À désactiver complètement en production : remplacer par `return false;`
     function isSeedAllowed(sid) {
-      return request.auth != null && sid == 'demo-school';
+      return isAuthenticated()
+        && sid == 'demo-school'
+        && getRole() == 'admin';
     }
 
     match /schools/{schoolId} {

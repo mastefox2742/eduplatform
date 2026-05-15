@@ -2,8 +2,11 @@ import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 import type { UserRole } from '@school/shared-types'
 
-// Mode démo : ?demo=direction ou ?demo=teacher dans l'URL
-const DEMO_ROLE = new URLSearchParams(window.location.search).get('demo') as UserRole | null
+// Mode démo uniquement si la variable d'env est explicitement activée (jamais en prod)
+const DEMO_ALLOWED = import.meta.env.VITE_ALLOW_DEMO_MODE === 'true'
+const DEMO_ROLE = DEMO_ALLOWED
+  ? (new URLSearchParams(window.location.search).get('demo') as UserRole | null)
+  : null
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -13,7 +16,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, role } = useAuthStore()
 
-  // En mode démo, bypass total de l'auth
+  // Mode démo désactivé en production — ne pas utiliser en dehors des émulateurs locaux
   if (DEMO_ROLE) return <>{children}</>
 
   if (isLoading) {

@@ -1,15 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
-import {
-  initializeAuth,
-  getAuth,
-  getReactNativePersistence,
-} from 'firebase/auth'
-import {
-  initializeFirestore,
-  getFirestore,
-} from 'firebase/firestore'
-import { getStorage } from 'firebase/storage'
-import AsyncStorage from '@react-native-async-storage/async-storage'
+import { getAuth }      from 'firebase/auth'
+import { initializeFirestore, getFirestore } from 'firebase/firestore'
+import { getStorage }   from 'firebase/storage'
 
 const firebaseConfig = {
   apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY             ?? 'AIzaSyDIvEFsUNZvSaWwUNb8oeb9KxZqiZXOWyY',
@@ -20,30 +12,19 @@ const firebaseConfig = {
   appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID              ?? '1:59723582226:web:b983f55ea5d25d6801c1cb',
 }
 
-// Initialise l'app une seule fois
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
 
-// Auth : AsyncStorage pour React Native (évite le crash IndexedDB)
-let auth: ReturnType<typeof getAuth>
-try {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  })
-} catch {
-  auth = getAuth(app)
-}
+// Auth — fonctionne en mémoire en React Native (pas de persistence entre sessions, ok pour la démo)
+export const auth = getAuth(app)
 
-// Firestore : long polling pour React Native (évite le crash IndexedDB)
+// Firestore — experimentalForceLongPolling évite le crash IndexedDB sur Android
 let db: ReturnType<typeof getFirestore>
 try {
-  db = initializeFirestore(app, {
-    experimentalForceLongPolling: true,
-  })
+  db = initializeFirestore(app, { experimentalForceLongPolling: true })
 } catch {
   db = getFirestore(app)
 }
+export { db }
 
-const storage = getStorage(app)
-
-export { auth, db, storage }
+export const storage = getStorage(app)
 export default app

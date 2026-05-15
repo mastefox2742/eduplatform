@@ -1,19 +1,22 @@
 /**
  * Push Notifications service — Expo Notifications
- * Handles: permission request, push token registration, local notifications
+ * NOTE: setNotificationHandler must NOT be called at module level on Android.
+ * Call initNotificationHandler() once from inside a useEffect instead.
  */
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
 import { Platform } from 'react-native'
 
-// Configure how notifications appear when app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge:  true,
-  }),
-})
+// ── Handler init — appelé depuis useEffect dans useNotifications ──────────────
+export function initNotificationHandler() {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge:  true,
+    }),
+  })
+}
 
 // ── Token registration ────────────────────────────────────────────────────────
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
@@ -36,20 +39,18 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 
   try {
-    const token = await Notifications.getExpoPushTokenAsync({
-      projectId: 'b1951d73-666e-40c2-9c64-91353051697e', // EAS project ID (app.json)
-    })
-    console.log('Push token:', token.data)
-
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name:       'default',
-        importance: Notifications.AndroidImportance.MAX,
+        name:             'default',
+        importance:       Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#1a73e8',
+        lightColor:       '#1a73e8',
       })
     }
 
+    const token = await Notifications.getExpoPushTokenAsync({
+      projectId: 'b1951d73-666e-40c2-9c64-91353051697e',
+    })
     return token.data
   } catch (e) {
     console.warn('Could not get push token:', e)
@@ -58,14 +59,18 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
 }
 
 // ── Local notifications ───────────────────────────────────────────────────────
-export async function sendLocalNotification(title: string, body: string, data?: Record<string, unknown>) {
+export async function sendLocalNotification(
+  title: string,
+  body: string,
+  data?: Record<string, unknown>,
+) {
   await Notifications.scheduleNotificationAsync({
     content: { title, body, data: data ?? {} },
-    trigger: null, // immediate
+    trigger: null,
   })
 }
 
-// ── School-specific notification helpers ─────────────────────────────────────
+// ── School helpers ────────────────────────────────────────────────────────────
 export async function notifyNewExercise(exerciseTitle: string, subject: string, dueDate: string) {
   return sendLocalNotification(
     `📝 Nouvel exercice — ${subject}`,
@@ -107,24 +112,23 @@ export async function notifySubmissionReceived(studentName: string, exerciseTitl
   )
 }
 
-// ── Badge management ─────────────────────────────────────────────────────────
+// ── Badge ─────────────────────────────────────────────────────────────────────
 export async function setBadgeCount(count: number) {
   await Notifications.setBadgeCountAsync(count)
 }
-
 export async function clearBadge() {
   await Notifications.setBadgeCountAsync(0)
 }
 
-// ── Listener helpers (return unsubscribe functions) ──────────────────────────
+// ── Listeners ─────────────────────────────────────────────────────────────────
 export function addNotificationReceivedListener(
-  handler: (notification: Notifications.Notification) => void
+  handler: (n: Notifications.Notification) => void,
 ) {
   return Notifications.addNotificationReceivedListener(handler)
 }
 
 export function addNotificationResponseListener(
-  handler: (response: Notifications.NotificationResponse) => void
+  handler: (r: Notifications.NotificationResponse) => void,
 ) {
   return Notifications.addNotificationResponseReceivedListener(handler)
 }

@@ -5,7 +5,7 @@ import {
   signOut,
   type User,
 } from 'firebase/auth'
-import { doc, onSnapshot } from 'firebase/firestore'
+import { doc, getDoc } from 'firebase/firestore'
 import { auth, db } from '@/config/firebase'
 import type { UserProfile } from '@school/shared-types'
 
@@ -28,69 +28,52 @@ export function useAuth(): AuthState & {
   })
 
   useEffect(() => {
-    let unsubProfile: (() => void) | null = null
-
     const unsubAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      unsubProfile?.()
-      unsubProfile = null
-
       if (!firebaseUser) {
         setState({ user: null, profile: null, isLoading: false, isAuthenticated: false })
         return
       }
 
-      // Refresh custom claims
-      await firebaseUser.getIdToken(true)
-
+      // Utilisateur connecté — on charge le profil depuis Firestore (une seule fois, pas de listener)
       setState(prev => ({ ...prev, user: firebaseUser, isAuthenticated: true }))
 
-      // Écoute le profil Firestore en temps réel
-      unsubProfile = onSnapshot(
-        doc(db, 'users', firebaseUser.uid),
-        (snap) => {
-          if (snap.exists()) {
-            setState(prev => ({
-              ...prev,
-              profile:   { id: snap.id, ...snap.data() } as UserProfile,
-              isLoading: false,
-            }))
-          } else {
-            // Fallback sur custom claims si pas de doc Firestore
-            firebaseUser.getIdTokenResult().then(({ claims }) => {
-              if (claims.role && claims.schoolId) {
-                setState(prev => ({
-                  ...prev,
-                  profile: {
-                    id:          firebaseUser.uid,
-                    email:       firebaseUser.email ?? '',
-                    displayName: firebaseUser.displayName ?? '',
-                    role:        claims.role as UserProfile['role'],
-                    schoolId:    claims.schoolId as string,
-                    isActive:    true,
-                    createdAt:   Date.now(),
-                    updatedAt:   Date.now(),
-                  },
-                  isLoading: false,
-                }))
-              } else {
-                setState(prev => ({ ...prev, isLoading: false }))
-              }
-            })
-          }
-        },
-        () => setState(prev => ({ ...prev, isLoading: false }))
-      )
+      try {
+        const snap = await getDoc(doc(db, 'users', firebaseUser.uid))
+        if (snap.exists()) {
+          setState(prev => ({
+            ...prev,
+            profile:   { id: snap.id, ...snap.data() } as UserProfile,
+            isLoading: false,
+          }))
+        } else {
+          // Pas de profil Firestore — on crée un profil minimal depuis le token
+          const { claims } = await firebaseUser.getIdTokenResult()
+          setState(prev => ({
+            ...prev,
+            profile: claims.role ? {
+              id:          firebaseUser.uid,
+              email:       firebaseUser.email ?? '',
+              displayName: firebaseUser.displayName ?? firebaseUser.email ?? '',
+              role:        claims.role as UserProfile['role'],
+              schoolId:    (claims.schoolId ?? 'demo') as string,
+              isActive:    true,
+              createdAt:   Date.now(),
+              updatedAt:   Date.now(),
+            } : null,
+            isLoading: false,
+          }))
+        }
+      } catch {
+        // En cas d'erreur réseau on continue sans profil
+        setState(prev => ({ ...prev, isLoading: false }))
+      }
     })
 
-    return () => {
-      unsubAuth()
-      unsubProfile?.()
-    }
+    return () => unsubAuth()
   }, [])
 
   const login = async (email: string, password: string) => {
-    const cred = await signInWithEmailAndPassword(auth, email, password)
-    await cred.user.getIdToken(true)
+    await signInWithEmailAndPassword(auth, email, password)
   }
 
   const logout = async () => {

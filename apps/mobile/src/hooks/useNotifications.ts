@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react'
 import * as Notifications from 'expo-notifications'
 import {
+  initNotificationHandler,
   registerForPushNotificationsAsync,
   addNotificationReceivedListener,
   addNotificationResponseListener,
@@ -28,6 +29,9 @@ export function useNotifications() {
   const responseListener = useRef<Notifications.Subscription>()
 
   useEffect(() => {
+    // Initialise le handler DANS un useEffect, pas au niveau module (crash Android)
+    initNotificationHandler()
+
     // Request permission and get token
     registerForPushNotificationsAsync().then(token => {
       setState(prev => ({ ...prev, pushToken: token, permGranted: !!token }))

@@ -24,7 +24,12 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1e40af"
       },
-      "package": "com.eduplatform.app"
+      "package": "com.eduplatform.app",
+      "permissions": [
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -37,16 +42,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "L'application accède à vos photos pour soumettre des exercices.",
           "cameraPermission": "L'application utilise la caméra pour photographier vos solutions."
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/icon.png",
-          "color": "#1a73e8",
-          "sounds": []
         }
       ]
     ],

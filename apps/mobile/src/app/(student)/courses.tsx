@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { useState } from 'react'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
 import { BurgerMenu } from '@/components/ui/BurgerMenu'
+import { AIChat } from '@/components/ui/AIChat'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Course {
@@ -91,7 +92,13 @@ function CourseReader({ course, onClose, onMarkRead }: {
   onClose:      () => void
   onMarkRead:   (id: string) => void
 }) {
+  const [activeTab, setActiveTab] = useState<'cours' | 'ai'>('cours')
   const subjectColor = SUBJECT_COLORS[course.subject] ?? colors.primary
+
+  const TABS = [
+    { key: 'cours', label: 'Cours',    icon: 'book-outline'               as const },
+    { key: 'ai',    label: 'Aide IA',  icon: 'chatbubble-ellipses-outline' as const },
+  ]
 
   return (
     <Modal visible animationType="slide" presentationStyle="pageSheet">
@@ -107,44 +114,80 @@ function CourseReader({ course, onClose, onMarkRead }: {
           <View style={{ width: 36 }} />
         </View>
 
-        <ScrollView contentContainerStyle={rStyles.body}>
-          {/* Hero */}
-          <Text style={rStyles.emoji}>{course.emoji}</Text>
-          <Text style={rStyles.title}>{course.title}</Text>
-
-          <View style={rStyles.metaRow}>
-            <View style={[rStyles.metaBadge, { backgroundColor: subjectColor + '15' }]}>
-              <Ionicons name="school-outline" size={12} color={subjectColor} />
-              <Text style={[rStyles.metaText, { color: subjectColor }]}>{course.teacherName}</Text>
-            </View>
-            <View style={rStyles.metaBadge}>
-              <Ionicons name="time-outline" size={12} color={colors.gray[500]} />
-              <Text style={rStyles.metaText}>{course.readTime} min de lecture</Text>
-            </View>
-          </View>
-
-          {/* Content */}
-          <View style={rStyles.contentBox}>
-            <Text style={rStyles.content}>{course.content}</Text>
-          </View>
-
-          {/* Mark read */}
-          {!course.read && (
+        {/* Onglets */}
+        <View style={rStyles.tabs}>
+          {TABS.map(t => (
             <TouchableOpacity
-              style={[rStyles.markReadBtn, { backgroundColor: subjectColor }]}
-              onPress={() => { onMarkRead(course.id); onClose() }}
+              key={t.key}
+              style={[rStyles.tab, activeTab === t.key && rStyles.tabActive]}
+              onPress={() => setActiveTab(t.key as any)}
             >
-              <Ionicons name="checkmark-circle" size={18} color={colors.white} />
-              <Text style={rStyles.markReadText}>Marquer comme lu</Text>
+              <Ionicons
+                name={t.icon}
+                size={15}
+                color={activeTab === t.key ? colors.primary : colors.gray[400]}
+              />
+              <Text style={[rStyles.tabLabel, activeTab === t.key && rStyles.tabLabelActive]}>
+                {t.label}
+              </Text>
             </TouchableOpacity>
-          )}
-          {course.read && (
-            <View style={rStyles.alreadyRead}>
-              <Ionicons name="checkmark-circle" size={16} color='#10b981' />
-              <Text style={rStyles.alreadyReadText}>Cours déjà lu ✓</Text>
+          ))}
+        </View>
+
+        {/* ── Contenu du cours ── */}
+        {activeTab === 'cours' && (
+          <ScrollView contentContainerStyle={rStyles.body}>
+            <Text style={rStyles.emoji}>{course.emoji}</Text>
+            <Text style={rStyles.title}>{course.title}</Text>
+
+            <View style={rStyles.metaRow}>
+              <View style={[rStyles.metaBadge, { backgroundColor: subjectColor + '15' }]}>
+                <Ionicons name="school-outline" size={12} color={subjectColor} />
+                <Text style={[rStyles.metaText, { color: subjectColor }]}>{course.teacherName}</Text>
+              </View>
+              <View style={rStyles.metaBadge}>
+                <Ionicons name="time-outline" size={12} color={colors.gray[500]} />
+                <Text style={rStyles.metaText}>{course.readTime} min de lecture</Text>
+              </View>
             </View>
-          )}
-        </ScrollView>
+
+            <View style={rStyles.contentBox}>
+              <Text style={rStyles.content}>{course.content}</Text>
+            </View>
+
+            {!course.read ? (
+              <TouchableOpacity
+                style={[rStyles.markReadBtn, { backgroundColor: subjectColor }]}
+                onPress={() => { onMarkRead(course.id); onClose() }}
+              >
+                <Ionicons name="checkmark-circle" size={18} color={colors.white} />
+                <Text style={rStyles.markReadText}>Marquer comme lu</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={rStyles.alreadyRead}>
+                <Ionicons name="checkmark-circle" size={16} color='#10b981' />
+                <Text style={rStyles.alreadyReadText}>Cours déjà lu ✓</Text>
+              </View>
+            )}
+
+            {/* Bouton accès rapide IA */}
+            <TouchableOpacity
+              style={[rStyles.aiShortcut, { borderColor: subjectColor + '40' }]}
+              onPress={() => setActiveTab('ai')}
+            >
+              <Text style={{ fontSize: 18 }}>🤖</Text>
+              <Text style={[rStyles.aiShortcutText, { color: subjectColor }]}>
+                Poser une question à l'IA sur ce cours
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={subjectColor} />
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+
+        {/* ── Aide IA Gemini ── */}
+        {activeTab === 'ai' && (
+          <AIChat context={course.title} subject={course.subject} />
+        )}
       </SafeAreaView>
     </Modal>
   )
@@ -319,6 +362,13 @@ const rStyles = StyleSheet.create({
   closeBtn:     { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.gray[100], alignItems: 'center', justifyContent: 'center' },
   headerSubject:{ fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.gray[700] },
 
+  // Onglets
+  tabs:         { flexDirection: 'row', backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.gray[100] },
+  tab:          { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+  tabActive:    { borderBottomColor: colors.primary },
+  tabLabel:     { fontSize: fontSize.xs, color: colors.gray[500], fontWeight: fontWeight.medium },
+  tabLabelActive:{ color: colors.primary, fontWeight: fontWeight.semibold },
+
   body:         { padding: spacing.lg, paddingBottom: 60 },
   emoji:        { fontSize: 56, textAlign: 'center', marginBottom: spacing.sm },
   title:        { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: colors.gray[900], textAlign: 'center', marginBottom: spacing.md },
@@ -335,4 +385,8 @@ const rStyles = StyleSheet.create({
 
   alreadyRead:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.md },
   alreadyReadText: { fontSize: fontSize.sm, color: '#10b981', fontWeight: fontWeight.medium },
+
+  // Bouton raccourci IA
+  aiShortcut:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1.5, backgroundColor: colors.white },
+  aiShortcutText:{ flex: 1, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
 })

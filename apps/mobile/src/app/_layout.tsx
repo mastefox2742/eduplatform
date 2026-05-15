@@ -3,8 +3,12 @@ import { Stack, router, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import * as SplashScreen from 'expo-splash-screen'
 import { useAuth } from '@/hooks/useAuth'
 import { UserRole } from '@school/shared-types'
+
+// Empêche le splash de se masquer automatiquement avant que l'app soit prête
+SplashScreen.preventAutoHideAsync()
 
 function AuthGuard() {
   const { user, profile, isLoading } = useAuth()
@@ -13,14 +17,15 @@ function AuthGuard() {
   useEffect(() => {
     if (isLoading) return
 
-    const inAuthGroup    = segments[0] === '(auth)'
-    const inStudentGroup = segments[0] === '(student)'
+    // L'app est prête → on masque le splash screen
+    SplashScreen.hideAsync()
+
+    const inAuthGroup = segments[0] === '(auth)'
 
     if (!user) {
       if (!inAuthGroup) router.replace('/(auth)/login')
     } else if (profile) {
       if (inAuthGroup) {
-        // Redirige vers le bon espace selon le rôle
         if (profile.role === UserRole.STUDENT) {
           router.replace('/(student)/')
         } else if (profile.role === UserRole.TEACHER) {

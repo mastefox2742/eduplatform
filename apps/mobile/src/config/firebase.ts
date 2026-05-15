@@ -1,10 +1,16 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth'
-import { initializeFirestore, getFirestore }          from 'firebase/firestore'
-import { getStorage }                                 from 'firebase/storage'
-import AsyncStorage                                   from '@react-native-async-storage/async-storage'
+import {
+  initializeAuth,
+  getAuth,
+  getReactNativePersistence,
+} from 'firebase/auth'
+import {
+  initializeFirestore,
+  getFirestore,
+} from 'firebase/firestore'
+import { getStorage } from 'firebase/storage'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
-// ─── Firebase client config ───────────────────────────────────────────────────
 const firebaseConfig = {
   apiKey:            process.env.EXPO_PUBLIC_FIREBASE_API_KEY             ?? 'AIzaSyDIvEFsUNZvSaWwUNb8oeb9KxZqiZXOWyY',
   authDomain:        process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN         ?? 'edu-school-bb515.firebaseapp.com',
@@ -14,35 +20,30 @@ const firebaseConfig = {
   appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID              ?? '1:59723582226:web:b983f55ea5d25d6801c1cb',
 }
 
+// Initialise l'app une seule fois
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
 
-// ─── Auth — persistance via AsyncStorage (React Native) ───────────────────────
-// getAuth() utilise IndexedDB (web) → crash en React Native.
-// initializeAuth + getReactNativePersistence résout ce problème.
-export const auth = getApps().length > 1
-  ? initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) })
-  : (() => {
-      try {
-        return initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) })
-      } catch {
-        // Auth déjà initialisée (hot reload)
-        const { getAuth } = require('firebase/auth')
-        return getAuth(app)
-      }
-    })()
+// Auth : AsyncStorage pour React Native (évite le crash IndexedDB)
+let auth: ReturnType<typeof getAuth>
+try {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  })
+} catch {
+  auth = getAuth(app)
+}
 
-// ─── Firestore — long polling (pas d'IndexedDB en React Native) ───────────────
-export const db = (() => {
-  try {
-    return initializeFirestore(app, {
-      experimentalForceLongPolling: true,
-    })
-  } catch {
-    // Déjà initialisé (hot reload)
-    return getFirestore(app)
-  }
-})()
+// Firestore : long polling pour React Native (évite le crash IndexedDB)
+let db: ReturnType<typeof getFirestore>
+try {
+  db = initializeFirestore(app, {
+    experimentalForceLongPolling: true,
+  })
+} catch {
+  db = getFirestore(app)
+}
 
-export const storage = getStorage(app)
+const storage = getStorage(app)
 
+export { auth, db, storage }
 export default app

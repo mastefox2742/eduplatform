@@ -6,7 +6,7 @@
  *   EXPO_PUBLIC_GEMINI_API_KEY=AIza...
  */
 
-const MODEL   = 'gemini-2.0-flash'
+const MODEL   = 'gemini-2.5-flash'
 const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -23,6 +23,7 @@ interface GeminiRequest {
     temperature?:      number
     maxOutputTokens?:  number
     topP?:             number
+    thinkingConfig?:   { thinkingBudget: number }
   }
 }
 
@@ -69,6 +70,8 @@ export async function askGemini(params: {
       temperature,
       maxOutputTokens: maxTokens,
       topP:            0.95,
+      // thinkingBudget:0 désactive le mode "thinking" de Gemini 2.5 → réponses plus rapides
+      thinkingConfig: { thinkingBudget: 0 },
     },
   }
 

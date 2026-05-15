@@ -127,7 +127,7 @@ export function AIChat({ context, subject, onClose }: AIChatProps) {
           </View>
           <View>
             <Text style={styles.aiName}>EduBot — Assistant IA</Text>
-            <Text style={styles.aiStatus}>● Gemini 2.0 Flash</Text>
+            <Text style={styles.aiStatus}>● Gemini 2.5 Flash</Text>
           </View>
         </View>
         {onClose && (

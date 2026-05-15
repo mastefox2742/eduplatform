@@ -5,7 +5,7 @@
 import { useState } from 'react'
 import {
   Modal, View, Text, TouchableOpacity,
-  StyleSheet, Pressable, Image,
+  StyleSheet, Pressable, Image, ScrollView,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
@@ -74,8 +74,12 @@ export function BurgerMenu({ iconColor = colors.white }: Props) {
               </View>
             </View>
 
-            {/* ── Navigation ─────────────────────────── */}
-            <View style={styles.navList}>
+            {/* ── Navigation (scrollable) ────────────── */}
+            <ScrollView
+              style={styles.navList}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
               {MENU_ITEMS.map(item => (
                 <TouchableOpacity
                   key={item.route}
@@ -90,9 +94,9 @@ export function BurgerMenu({ iconColor = colors.white }: Props) {
                   <Ionicons name="chevron-forward" size={15} color={colors.gray[300]} />
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
 
-            {/* ── Déconnexion ─────────────────────────── */}
+            {/* ── Déconnexion (fixe en bas) ───────────── */}
             <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
               <Ionicons name="log-out-outline" size={18} color={colors.error} />
               <Text style={styles.logoutText}>Se déconnecter</Text>
@@ -118,6 +122,7 @@ const styles = StyleSheet.create({
     width: '78%',
     height: '100%',
     backgroundColor: colors.white,
+    flexDirection: 'column',
     ...shadow.md,
   },
 
@@ -143,7 +148,7 @@ const styles = StyleSheet.create({
   roleText:     { fontSize: fontSize.xs, color: colors.white, fontWeight: fontWeight.medium },
 
   // Navigation
-  navList: { flex: 1, paddingVertical: spacing.sm },
+  navList: { flex: 1, paddingVertical: spacing.xs },
   navItem: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
     paddingHorizontal: spacing.lg, paddingVertical: 13,
@@ -159,9 +164,9 @@ const styles = StyleSheet.create({
   // Logout
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.lg,
     borderTopWidth: 1, borderTopColor: colors.gray[100],
-    marginBottom: spacing.xl,
+    backgroundColor: colors.white,
   },
   logoutText: { fontSize: fontSize.base, color: colors.error, fontWeight: fontWeight.medium },
 })

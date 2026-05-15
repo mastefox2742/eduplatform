@@ -28,12 +28,14 @@ service firebase.storage {
       return isAuthenticated() && getRole() == 'direction';
     }
 
+    // UserRole.TEACHER = 'teacher' (enum shared-types — anciennement 'professeur')
     function isProfesseur() {
-      return isAuthenticated() && getRole() == 'professeur';
+      return isAuthenticated() && getRole() == 'teacher';
     }
 
+    // UserRole.STUDENT = 'student' (enum shared-types — anciennement 'eleve')
     function isEleve() {
-      return isAuthenticated() && getRole() == 'eleve';
+      return isAuthenticated() && getRole() == 'student';
     }
 
     // Vérifie que le fichier uploadé est un PDF

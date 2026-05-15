@@ -5,8 +5,9 @@ import {
   signOut,
   type User,
 } from 'firebase/auth'
-import { doc, getDoc } from 'firebase/firestore'
+import { doc, getDoc, updateDoc } from 'firebase/firestore'
 import { auth, db } from '@/config/firebase'
+import { uploadProfilePhoto } from '@/services/storage'
 import type { UserProfile } from '@school/shared-types'
 
 interface AuthState {
@@ -17,8 +18,9 @@ interface AuthState {
 }
 
 export function useAuth(): AuthState & {
-  login:  (email: string, password: string) => Promise<void>
-  logout: () => Promise<void>
+  login:       (email: string, password: string) => Promise<void>
+  logout:      () => Promise<void>
+  updatePhoto: (localUri: string) => Promise<void>
 } {
   const [state, setState] = useState<AuthState>({
     user:            null,
@@ -80,5 +82,19 @@ export function useAuth(): AuthState & {
     await signOut(auth)
   }
 
-  return { ...state, login, logout }
+  // Met à jour la photo de profil : upload Storage + mise à jour Firestore + état local
+  const updatePhoto = async (localUri: string) => {
+    if (!state.user) throw new Error('Non connecté')
+    const photoURL = await uploadProfilePhoto(state.user.uid, localUri)
+    await updateDoc(doc(db, 'users', state.user.uid), {
+      photoURL,
+      updatedAt: Date.now(),
+    })
+    setState(prev => prev.profile
+      ? { ...prev, profile: { ...prev.profile, photoURL } }
+      : prev
+    )
+  }
+
+  return { ...state, login, logout, updatePhoto }
 }

@@ -1,6 +1,11 @@
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native'
+import { useState } from 'react'
+import {
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  Alert, Image, ActivityIndicator,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
+import * as ImagePicker from 'expo-image-picker'
 import { useAuth } from '@/hooks/useAuth'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
 import { BurgerMenu } from '@/components/ui/BurgerMenu'
@@ -14,7 +19,8 @@ interface MenuItem {
 }
 
 export default function ProfileScreen() {
-  const { profile, logout } = useAuth()
+  const { profile, logout, updatePhoto } = useAuth()
+  const [uploading, setUploading] = useState(false)
 
   const initials = profile?.displayName
     ?.split(' ')
@@ -22,6 +28,62 @@ export default function ProfileScreen() {
     .slice(0, 2)
     .join('')
     .toUpperCase() ?? '?'
+
+  // ── Choix de la photo ──────────────────────────────────────────────────────
+
+  const handlePickPhoto = () => {
+    Alert.alert(
+      'Photo de profil',
+      'Comment souhaitez-vous choisir votre photo ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: '📷 Prendre une photo',          onPress: () => pickPhoto('camera')  },
+        { text: '🖼️ Choisir depuis la galerie', onPress: () => pickPhoto('gallery') },
+      ]
+    )
+  }
+
+  const pickPhoto = async (source: 'camera' | 'gallery') => {
+    const opts: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect:  [1, 1],
+      quality: 0.8,
+    }
+
+    let result: ImagePicker.ImagePickerResult
+
+    if (source === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', "L'accès à la caméra est nécessaire.")
+        return
+      }
+      result = await ImagePicker.launchCameraAsync(opts)
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (status !== 'granted') {
+        Alert.alert('Permission requise', "L'accès à la galerie est nécessaire.")
+        return
+      }
+      result = await ImagePicker.launchImageLibraryAsync(opts)
+    }
+
+    if (result.canceled || !result.assets?.[0]) return
+
+    setUploading(true)
+    try {
+      await updatePhoto(result.assets[0].uri)
+      Alert.alert('✅ Photo mise à jour', 'Votre photo de profil a bien été modifiée.')
+    } catch (err) {
+      console.error(err)
+      Alert.alert('Erreur', "Impossible de mettre à jour la photo. Réessayez.")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  // ── Déconnexion ────────────────────────────────────────────────────────────
 
   const handleLogout = () => {
     Alert.alert(
@@ -33,6 +95,8 @@ export default function ProfileScreen() {
       ]
     )
   }
+
+  // ── Sections du menu ───────────────────────────────────────────────────────
 
   const INFO_ITEMS: MenuItem[] = [
     {
@@ -47,12 +111,12 @@ export default function ProfileScreen() {
     },
     {
       icon: 'people-outline', label: 'Classe',
-      value: '3ème A',
+      value: (profile as any)?.classe ?? '3ème A',
       onPress: () => {},
     },
     {
       icon: 'card-outline', label: 'Numéro étudiant',
-      value: 'STU-2025-001',
+      value: (profile as any)?.studentNumber ?? 'STU-2025-001',
       onPress: () => {},
     },
   ]
@@ -78,36 +142,57 @@ export default function ProfileScreen() {
   ]
 
   const SUPPORT_ITEMS: MenuItem[] = [
-    {
-      icon: 'help-circle-outline', label: 'Aide & Support',
-      onPress: () => {},
-    },
-    {
-      icon: 'document-text-outline', label: 'Conditions d\'utilisation',
-      onPress: () => {},
-    },
-    {
-      icon: 'shield-outline', label: 'Politique de confidentialité',
-      onPress: () => {},
-    },
+    { icon: 'help-circle-outline',   label: 'Aide & Support',                   onPress: () => {} },
+    { icon: 'document-text-outline', label: "Conditions d'utilisation",         onPress: () => {} },
+    { icon: 'shield-outline',        label: 'Politique de confidentialité',     onPress: () => {} },
   ]
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Barre de nav */}
-      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.white }}>
+      <View style={styles.navbar}>
         <BurgerMenu iconColor={colors.gray[700]} />
       </View>
+
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Avatar & nom */}
+        {/* ── Avatar & nom ── */}
         <View style={styles.hero}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials}</Text>
-          </View>
+          <TouchableOpacity
+            onPress={handlePickPhoto}
+            disabled={uploading}
+            activeOpacity={0.85}
+            style={styles.avatarWrap}
+          >
+            {/* Cercle avatar */}
+            <View style={styles.avatar}>
+              {(profile as any)?.photoURL ? (
+                <Image
+                  source={{ uri: (profile as any).photoURL }}
+                  style={styles.avatarImg}
+                />
+              ) : (
+                <Text style={styles.avatarText}>{initials}</Text>
+              )}
+              {/* Overlay de chargement */}
+              {uploading && (
+                <View style={styles.avatarOverlay}>
+                  <ActivityIndicator color={colors.white} size="small" />
+                </View>
+              )}
+            </View>
+            {/* Badge caméra */}
+            <View style={styles.cameraBtn}>
+              <Ionicons name="camera" size={13} color={colors.white} />
+            </View>
+          </TouchableOpacity>
+
           <Text style={styles.name}>{profile?.displayName ?? 'Élève'}</Text>
           <View style={styles.roleBadge}>
             <Text style={styles.roleText}>🎓 Élève</Text>
           </View>
+          <Text style={styles.photoHint}>
+            {uploading ? 'Envoi en cours...' : 'Appuyer sur la photo pour la modifier'}
+          </Text>
         </View>
 
         {/* Infos du compte */}
@@ -131,6 +216,8 @@ export default function ProfileScreen() {
     </SafeAreaView>
   )
 }
+
+// ── Composant section ─────────────────────────────────────────────────────────
 
 function MenuSection({ title, items }: { title: string; items: MenuItem[] }) {
   return (
@@ -161,28 +248,81 @@ function MenuSection({ title, items }: { title: string; items: MenuItem[] }) {
   )
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const AVATAR_SIZE = 88
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
+  navbar: {
+    flexDirection:    'row',
+    justifyContent:   'flex-end',
+    paddingHorizontal: spacing.md,
+    paddingVertical:   spacing.sm,
+    backgroundColor:  colors.white,
+  },
+
   hero: {
-    alignItems:      'center',
-    backgroundColor: colors.white,
-    paddingVertical: spacing.xl,
+    alignItems:        'center',
+    backgroundColor:   colors.white,
+    paddingVertical:   spacing.xl,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray[100],
   },
+
+  // Avatar cliquable
+  avatarWrap: {
+    position:     'relative',
+    marginBottom: spacing.md,
+  },
   avatar: {
-    width:           80,
-    height:          80,
-    borderRadius:    40,
+    width:           AVATAR_SIZE,
+    height:          AVATAR_SIZE,
+    borderRadius:    AVATAR_SIZE / 2,
     backgroundColor: colors.primary,
     alignItems:      'center',
     justifyContent:  'center',
-    marginBottom:    spacing.md,
+    overflow:        'hidden',
     ...shadow.md,
   },
-  avatarText: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: colors.white },
-  name:       { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.gray[900] },
+  avatarImg: {
+    width:        AVATAR_SIZE,
+    height:       AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+  },
+  avatarText: {
+    fontSize:   fontSize['2xl'],
+    fontWeight: fontWeight.bold,
+    color:      colors.white,
+  },
+  avatarOverlay: {
+    position:        'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  // Badge caméra en bas à droite de l'avatar
+  cameraBtn: {
+    position:        'absolute',
+    bottom:          0,
+    right:           0,
+    width:           26,
+    height:          26,
+    borderRadius:    13,
+    backgroundColor: colors.primary,
+    borderWidth:     2,
+    borderColor:     colors.white,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+
+  name: {
+    fontSize:   fontSize.xl,
+    fontWeight: fontWeight.bold,
+    color:      colors.gray[900],
+  },
   roleBadge: {
     marginTop:         spacing.sm,
     paddingHorizontal: spacing.md,
@@ -190,17 +330,26 @@ const styles = StyleSheet.create({
     backgroundColor:   colors.primary + '15',
     borderRadius:      radius.full,
   },
-  roleText: { fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.semibold },
+  roleText: {
+    fontSize:   fontSize.sm,
+    color:      colors.primary,
+    fontWeight: fontWeight.semibold,
+  },
+  photoHint: {
+    marginTop:  spacing.sm,
+    fontSize:   fontSize.xs,
+    color:      colors.gray[400],
+  },
 
   section: {
     paddingHorizontal: spacing.lg,
     marginTop:         spacing.lg,
   },
   sectionTitle: {
-    fontSize:     fontSize.xs,
-    fontWeight:   fontWeight.semibold,
-    color:        colors.gray[500],
-    textTransform:'uppercase',
+    fontSize:      fontSize.xs,
+    fontWeight:    fontWeight.semibold,
+    color:         colors.gray[500],
+    textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom:  spacing.sm,
   },
@@ -211,9 +360,9 @@ const styles = StyleSheet.create({
     ...shadow.sm,
   },
   menuItem: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    padding:        spacing.md,
+    flexDirection: 'row',
+    alignItems:    'center',
+    padding:       spacing.md,
   },
   menuItemBorder: {
     borderBottomWidth: 1,
@@ -228,9 +377,9 @@ const styles = StyleSheet.create({
     justifyContent:  'center',
     marginRight:     spacing.md,
   },
-  menuLabel: { flex: 1, fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: colors.gray[800] },
-  menuRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, maxWidth: 120 },
-  menuValue: { fontSize: fontSize.sm, color: colors.gray[400] },
+  menuLabel:  { flex: 1, fontSize: fontSize.sm, fontWeight: fontWeight.medium, color: colors.gray[800] },
+  menuRight:  { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, maxWidth: 120 },
+  menuValue:  { fontSize: fontSize.sm, color: colors.gray[400] },
 
   logoutBtn: {
     flexDirection:   'row',

@@ -1,6 +1,6 @@
 /**
  * AIChat — Composant de chat IA réutilisable
- * Utilisé dans les cours et exercices pour assistance intelligente
+ * Connecté à Google Gemini 1.5 Flash via l'API REST
  */
 import { useState, useRef } from 'react'
 import {
@@ -9,6 +9,9 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { askGemini, PEDAGOGY_SYSTEM_INSTRUCTION, type GeminiContent } from '@/services/gemini'
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Message {
   role:    'user' | 'ai'
@@ -17,92 +20,98 @@ interface Message {
 }
 
 interface AIChatProps {
-  context?: string   // Contexte du cours/exercice pour l'IA
-  subject?: string   // Matière
+  context?: string   // Titre du cours / exercice
+  subject?: string   // Matière (Mathématiques, Français…)
   onClose?: () => void
 }
 
-// Réponses IA simulées intelligentes selon le contexte
-function generateAIResponse(userMsg: string, context?: string, subject?: string): string {
-  const msg = userMsg.toLowerCase()
-  const sub = subject?.toLowerCase() ?? ''
+// ── Utilitaires ───────────────────────────────────────────────────────────────
 
-  if (msg.includes('explication') || msg.includes('explique') || msg.includes('comprends pas')) {
-    return `Bien sûr ! En ${subject ?? 'cette matière'}, ce concept est fondamental. ${context ? `Dans ce cours sur "${context}", ` : ''}voici comment je l'explique simplement :\n\n📌 **Principe de base** : Commence par mémoriser la définition principale.\n\n📌 **Exemple concret** : Applique-le à une situation que tu connais dans ta vie quotidienne.\n\n📌 **Astuce mémo** : Crée un moyen mnémotechnique pour t'en souvenir facilement.\n\nTu veux que j'approfondisse un point précis ?`
-  }
-
-  if (msg.includes('exercice') || msg.includes('problème') || msg.includes('résoudre')) {
-    return `Super que tu travailles les exercices ! Voici ma méthode en 3 étapes :\n\n**1️⃣ Lis l'énoncé 2 fois** — identifie ce qu'on te demande.\n**2️⃣ Identifie la formule/règle** applicable à ce type de problème.\n**3️⃣ Pose ton calcul** proprement avant de résoudre.\n\nMontre-moi l'exercice et je t'aide étape par étape ! 💪`
-  }
-
-  if (msg.includes('vidéo') || msg.includes('video') || msg.includes('youtube')) {
-    return `📺 Pour ${subject ?? 'cette matière'}, je te recommande de rechercher sur YouTube :\n\n• "**${subject} cours complet débutant**"\n• "**${context ?? subject} explication simple**"\n• "**${subject} bac**" pour les révisions\n\nClique sur le bouton YouTube dans la section du cours pour accéder directement aux meilleures vidéos ! 🎬`
-  }
-
-  if (msg.includes('formule') || msg.includes('règle') || msg.includes('définition')) {
-    return `📖 **Définition clé en ${subject ?? 'cette matière'}** :\n\nLes formules et règles importantes sont celles que tu utiliseras le plus souvent. Je te conseille de :\n\n✅ Les écrire sur une fiche de révision\n✅ Les appliquer sur 5 exercices différents\n✅ Les réviser 15 minutes chaque soir\n\nQuelle formule précise tu cherches ? Je te l'explique en détail.`
-  }
-
-  if (msg.includes('note') || msg.includes('moyen') || msg.includes('améliorer')) {
-    return `🎯 Pour améliorer ta moyenne en ${subject ?? 'cette matière'} :\n\n**Plan de travail efficace :**\n1. 📅 Révise 20 min par jour (régularité > intensité)\n2. 📝 Refais tous les anciens exercices\n3. ❓ Pose des questions dès que tu bloques\n4. 🎬 Regarde les vidéos YouTube du cours\n5. 🤝 Travaille en groupe une fois par semaine\n\nTu es capable de progresser ! Quel est ton point faible actuellement ?`
-  }
-
-  // Réponse générale
-  return `Je suis ton assistant IA pour ${subject ?? 'tes cours'} ! 🤖\n\nJe peux t'aider à :\n• 📖 Expliquer les concepts du cours\n• ✏️ Résoudre des exercices étape par étape\n• 🎬 Trouver des vidéos explicatives\n• 📋 Créer des fiches de révision\n• 💡 Donner des astuces de mémorisation\n\nQu'est-ce que tu veux travailler aujourd'hui ?`
+function now() {
+  return new Date().toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit' })
 }
 
+/** Convertit l'historique UI → format attendu par Gemini */
+function toGeminiHistory(messages: Message[]): GeminiContent[] {
+  return messages
+    .filter(m => m.role !== 'ai' || messages.indexOf(m) > 0) // Sauter le message d'accueil
+    .map(m => ({
+      role:  m.role === 'user' ? 'user' : 'model',
+      parts: [{ text: m.content }],
+    }))
+}
+
+// ── Composant ─────────────────────────────────────────────────────────────────
+
 export function AIChat({ context, subject, onClose }: AIChatProps) {
+  const greeting = `Bonjour ! Je suis EduBot${subject ? `, ton assistant en **${subject}**` : ''} 🤖\n\nJe suis là pour t'aider à comprendre ${context ? `"${context}"` : 'tes cours'}, résoudre des exercices et réviser efficacement.\n\nComment puis-je t'aider ?`
+
   const [messages, setMessages] = useState<Message[]>([
-    {
-      role:    'ai',
-      content: `Bonjour ! Je suis ton assistant IA${subject ? ` pour **${subject}**` : ''} 🤖\n\nJe suis là pour t'aider à comprendre ${context ? `le cours sur "${context}"` : 'tes cours'}, résoudre des exercices et réviser efficacement.\n\nComment puis-je t'aider ?`,
-      time:    new Date().toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit' }),
-    },
+    { role: 'ai', content: greeting, time: now() },
   ])
-  const [input,    setInput]    = useState('')
-  const [loading,  setLoading]  = useState(false)
+  const [input,   setInput]   = useState('')
+  const [loading, setLoading] = useState(false)
   const scrollRef = useRef<ScrollView>(null)
+
+  const scrollToEnd = () =>
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)
 
   const sendMessage = async () => {
     const text = input.trim()
     if (!text || loading) return
 
-    const userMsg: Message = {
-      role:    'user',
-      content: text,
-      time:    new Date().toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit' }),
-    }
-
-    setMessages(prev => [...prev, userMsg])
+    const userMsg: Message = { role: 'user', content: text, time: now() }
+    const nextMessages = [...messages, userMsg]
+    setMessages(nextMessages)
     setInput('')
     setLoading(true)
+    scrollToEnd()
 
-    setTimeout(() => {
-      scrollRef.current?.scrollToEnd({ animated: true })
-    }, 100)
+    // Instruction système enrichie avec la matière / le cours
+    const systemInstruction = [
+      PEDAGOGY_SYSTEM_INSTRUCTION,
+      subject ? `La matière actuelle est : ${subject}.` : '',
+      context ? `Le cours ou exercice en cours : "${context}".` : '',
+    ].filter(Boolean).join('\n')
 
-    // Simule un délai réseau réaliste
-    await new Promise(r => setTimeout(r, 1200 + Math.random() * 800))
+    try {
+      const responseText = await askGemini({
+        prompt:            text,
+        history:           toGeminiHistory(messages),
+        systemInstruction,
+        temperature:       0.7,
+        maxTokens:         512,
+      })
 
-    const aiResponse: Message = {
-      role:    'ai',
-      content: generateAIResponse(text, context, subject),
-      time:    new Date().toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit' }),
+      setMessages(prev => [
+        ...prev,
+        { role: 'ai', content: responseText, time: now() },
+      ])
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue'
+      // Erreur spéciale : clé API manquante
+      const isKeyMissing = message.includes('Clé API Gemini manquante')
+      setMessages(prev => [
+        ...prev,
+        {
+          role:    'ai',
+          content: isKeyMissing
+            ? '⚠️ **Clé API Gemini non configurée.**\n\nAjoutez votre clé dans le fichier `.env.local` :\n`EXPO_PUBLIC_GEMINI_API_KEY=AIza...`\n\nObtenez une clé gratuite sur [aistudio.google.com](https://aistudio.google.com/app/apikey)'
+            : `❌ Une erreur est survenue :\n${message}\n\nVérifie ta connexion internet et réessaie.`,
+          time: now(),
+        },
+      ])
+    } finally {
+      setLoading(false)
+      scrollToEnd()
     }
-
-    setMessages(prev => [...prev, aiResponse])
-    setLoading(false)
-
-    setTimeout(() => {
-      scrollRef.current?.scrollToEnd({ animated: true })
-    }, 100)
   }
 
   const QUICK_PROMPTS = [
     'Explique-moi ce concept',
     'Aide-moi avec un exercice',
-    'Trouve-moi une vidéo',
-    'Donne-moi des astuces',
+    'Donne-moi des astuces de révision',
+    'Fais un résumé du cours',
   ]
 
   return (
@@ -110,15 +119,15 @@ export function AIChat({ context, subject, onClose }: AIChatProps) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      {/* Header */}
+      {/* ── En-tête ── */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.aiAvatar}>
             <Text style={styles.aiAvatarText}>🤖</Text>
           </View>
           <View>
-            <Text style={styles.aiName}>Assistant IA</Text>
-            <Text style={styles.aiStatus}>● En ligne</Text>
+            <Text style={styles.aiName}>EduBot — Assistant IA</Text>
+            <Text style={styles.aiStatus}>● Gemini 1.5 Flash</Text>
           </View>
         </View>
         {onClose && (
@@ -128,7 +137,7 @@ export function AIChat({ context, subject, onClose }: AIChatProps) {
         )}
       </View>
 
-      {/* Messages */}
+      {/* ── Messages ── */}
       <ScrollView
         ref={scrollRef}
         style={styles.messages}
@@ -153,19 +162,21 @@ export function AIChat({ context, subject, onClose }: AIChatProps) {
           </View>
         ))}
 
+        {/* Indicateur de frappe */}
         {loading && (
           <View style={styles.msgRow}>
             <View style={styles.msgAvatarSmall}>
               <Text style={{ fontSize: 12 }}>🤖</Text>
             </View>
-            <View style={styles.bubbleAI}>
+            <View style={[styles.bubbleAI, styles.typingBubble]}>
               <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={styles.typingText}>EduBot écrit…</Text>
             </View>
           </View>
         )}
       </ScrollView>
 
-      {/* Suggestions rapides */}
+      {/* ── Suggestions rapides (premier message seulement) ── */}
       {messages.length === 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.quickScroll}>
           <View style={styles.quickRow}>
@@ -173,7 +184,7 @@ export function AIChat({ context, subject, onClose }: AIChatProps) {
               <TouchableOpacity
                 key={p}
                 style={styles.quickBtn}
-                onPress={() => { setInput(p); }}
+                onPress={() => setInput(p)}
               >
                 <Text style={styles.quickBtnText}>{p}</Text>
               </TouchableOpacity>
@@ -182,16 +193,17 @@ export function AIChat({ context, subject, onClose }: AIChatProps) {
         </ScrollView>
       )}
 
-      {/* Input */}
+      {/* ── Saisie ── */}
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}
-          placeholder="Pose ta question..."
+          placeholder="Pose ta question…"
           placeholderTextColor={colors.gray[400]}
           value={input}
           onChangeText={setInput}
           multiline
           maxLength={500}
+          returnKeyType="send"
           onSubmitEditing={sendMessage}
         />
         <TouchableOpacity
@@ -206,29 +218,31 @@ export function AIChat({ context, subject, onClose }: AIChatProps) {
   )
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
   header: {
-    flexDirection:    'row',
-    justifyContent:   'space-between',
-    alignItems:       'center',
-    backgroundColor:  colors.white,
+    flexDirection:     'row',
+    justifyContent:    'space-between',
+    alignItems:        'center',
+    backgroundColor:   colors.white,
     paddingHorizontal: spacing.md,
-    paddingVertical:  spacing.sm,
+    paddingVertical:   spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.gray[100],
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerLeft:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   aiAvatar: {
     width: 36, height: 36, borderRadius: 18,
     backgroundColor: colors.primary + '15',
     alignItems: 'center', justifyContent: 'center',
   },
   aiAvatarText: { fontSize: 18 },
-  aiName:   { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.gray[900] },
-  aiStatus: { fontSize: 10, color: colors.success, fontWeight: fontWeight.medium },
-  closeBtn: { padding: spacing.xs },
+  aiName:       { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.gray[900] },
+  aiStatus:     { fontSize: 10, color: colors.success, fontWeight: fontWeight.medium },
+  closeBtn:     { padding: spacing.xs },
 
   messages: { flex: 1 },
 
@@ -243,19 +257,19 @@ const styles = StyleSheet.create({
   },
 
   bubble: {
-    maxWidth: '80%',
+    maxWidth:    '80%',
     borderRadius: radius.lg,
-    padding: spacing.sm,
+    padding:      spacing.sm,
   },
   bubbleAI: {
-    backgroundColor: colors.white,
+    backgroundColor:        colors.white,
     borderBottomLeftRadius: 4,
     ...shadow.sm,
-    minWidth: 48, minHeight: 36,
-    alignItems: 'center', justifyContent: 'center',
+    minWidth:               48,
+    minHeight:              36,
   },
   bubbleUser: {
-    backgroundColor: colors.primary,
+    backgroundColor:         colors.primary,
     borderBottomRightRadius: 4,
   },
   bubbleText:     { fontSize: fontSize.sm, color: colors.gray[800], lineHeight: 20 },
@@ -263,12 +277,15 @@ const styles = StyleSheet.create({
   bubbleTime:     { fontSize: 10, color: colors.gray[400], marginTop: 4, alignSelf: 'flex-end' },
   bubbleTimeUser: { color: 'rgba(255,255,255,0.6)' },
 
+  typingBubble: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.sm },
+  typingText:   { fontSize: fontSize.xs, color: colors.gray[500], fontStyle: 'italic' },
+
   quickScroll: { maxHeight: 44 },
   quickRow: {
-    flexDirection: 'row',
+    flexDirection:    'row',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    gap: spacing.xs,
+    paddingVertical:  spacing.xs,
+    gap:              spacing.xs,
   },
   quickBtn: {
     paddingHorizontal: spacing.md,
@@ -290,24 +307,24 @@ const styles = StyleSheet.create({
     gap:              spacing.sm,
   },
   input: {
-    flex:             1,
-    backgroundColor:  colors.gray[50],
-    borderRadius:     radius.lg,
+    flex:              1,
+    backgroundColor:   colors.gray[50],
+    borderRadius:      radius.lg,
     paddingHorizontal: spacing.md,
-    paddingVertical:  spacing.sm,
-    fontSize:         fontSize.sm,
-    color:            colors.gray[900],
-    maxHeight:        100,
-    borderWidth:      1,
-    borderColor:      colors.gray[200],
+    paddingVertical:   spacing.sm,
+    fontSize:          fontSize.sm,
+    color:             colors.gray[900],
+    maxHeight:         100,
+    borderWidth:       1,
+    borderColor:       colors.gray[200],
   },
   sendBtn: {
-    width:            40,
-    height:           40,
-    borderRadius:     20,
-    backgroundColor:  colors.primary,
-    alignItems:       'center',
-    justifyContent:   'center',
+    width:           40,
+    height:          40,
+    borderRadius:    20,
+    backgroundColor: colors.primary,
+    alignItems:      'center',
+    justifyContent:  'center',
   },
   sendBtnDisabled: { opacity: 0.4 },
 })

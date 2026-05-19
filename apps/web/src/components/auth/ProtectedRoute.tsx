@@ -2,11 +2,10 @@ import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
 import type { UserRole } from '@school/shared-types'
 
-// Mode démo uniquement si la variable d'env est explicitement activée (jamais en prod)
-const DEMO_ALLOWED = import.meta.env.VITE_ALLOW_DEMO_MODE === 'true'
-const DEMO_ROLE = DEMO_ALLOWED
-  ? (new URLSearchParams(window.location.search).get('demo') as UserRole | null)
-  : null
+// ⚠️ Le mode démo via ?demo= est SUPPRIMÉ.
+// Même si VITE_ALLOW_DEMO_MODE=true, le bypass URL est une faille critique
+// (accès non authentifié à toutes les routes en production).
+// Pour des démonstrations, utiliser des comptes Firebase dédiés.
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -15,9 +14,6 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading, role } = useAuthStore()
-
-  // Mode démo désactivé en production — ne pas utiliser en dehors des émulateurs locaux
-  if (DEMO_ROLE) return <>{children}</>
 
   if (isLoading) {
     return (

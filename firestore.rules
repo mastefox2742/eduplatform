@@ -13,9 +13,10 @@ service cloud.firestore {
     // FONCTIONS HELPER - Vérification des identités et rôles
     // ===========================================================
 
-    // Vérifie qu'un utilisateur est authentifié
+    // Vérifie qu'un utilisateur est authentifié et protégé par App Check
     function isAuthenticated() {
-      return request.auth != null && request.auth.uid != null;
+      // Note: request.app != null is used to verify App Check
+      return request.auth != null && request.auth.uid != null && request.app != null;
     }
 
     // Récupère le rôle depuis les Custom Claims Firebase Auth
@@ -141,7 +142,7 @@ service cloud.firestore {
       // - Les professeurs lisent les élèves de leurs classes
       allow read: if isOwner(studentUid)
         || isDirectionSameSchool(resource.data.schoolId)
-        || (isProfesseurSameSchool(resource.data.schoolId));
+        || (isProfesseurSameSchool(resource.data.schoolId) && resource.data.classeId == request.auth.token.classeId);
 
       // Création : uniquement via Cloud Function generateStudentCredentials
       allow create: if false;
@@ -199,9 +200,11 @@ service cloud.firestore {
         && noSensitiveFields();
 
       // Mise à jour : auteur du cours ou direction
-      allow update: if (resource.data.teacherId == request.auth.uid
+      // ⚠️ Les parenthèses sont CRITIQUES ici : && a une précédence plus haute que ||
+      // Sans elles, fieldNotChanged ne s'applique qu'au bloc direction.
+      allow update: if ((resource.data.teacherId == request.auth.uid
           && isProfesseurSameSchool(resource.data.schoolId))
-        || isDirectionSameSchool(resource.data.schoolId)
+        || isDirectionSameSchool(resource.data.schoolId))
         && fieldNotChanged('schoolId')
         && fieldNotChanged('teacherId')
         && textFieldsWithinLimits();
@@ -254,21 +257,20 @@ service cloud.firestore {
     // ===========================================================
     match /progress/{studentUid}/courses/{courseId} {
       // L'élève lit sa propre progression
-      // Les professeurs lisent la progression de leurs élèves
+      // Les professeurs lisent la progression des élèves de LEUR classe uniquement (anti-IDOR)
       // La direction lit tout
       allow read: if isOwner(studentUid)
         || isDirectionSameSchool(
             get(/databases/$(database)/documents/students/$(studentUid)).data.schoolId)
-        || isProfesseurSameSchool(
-            get(/databases/$(database)/documents/students/$(studentUid)).data.schoolId);
+        || (isProfesseurSameSchool(
+            get(/databases/$(database)/documents/students/$(studentUid)).data.schoolId)
+            && get(/databases/$(database)/documents/students/$(studentUid)).data.classeId
+               == request.auth.token.classeId);
 
-      // Seul l'élève écrit sa propre progression (via les actions légitimes)
-      allow write: if isOwner(studentUid)
-        && request.resource.data.studentId == request.auth.uid
-        && request.resource.data.schoolId == getSchoolId()
-        // Empêcher la falsification des scores (max 100)
-        && (!('quizResults' in request.resource.data)
-            || request.resource.data.quizResults.size() <= 1000);
+      // Écriture de progression déléguée aux Cloud Functions via Admin SDK.
+      // L'élève ne peut PAS écrire directement sa progression côté client
+      // (risque de falsification de scores — voir VUL-04).
+      allow write: if false;
     }
 
     // ===========================================================
@@ -317,7 +319,8 @@ service cloud.firestore {
     }
 
     match /_aiUsage/{document=**} {
-      allow read: if isDirection();  // La direction peut voir la consommation IA
+      // La direction voit uniquement la consommation IA de SON école (anti cross-tenant)
+      allow read: if isDirection() && resource.data.schoolId == getSchoolId();
       allow write: if false;
     }
 
@@ -340,13 +343,10 @@ service cloud.firestore {
     // Données organisées par schoolId pour le multi-école
     // ===========================================================
 
-    // ⚠️ ACCÈS SEED : Restreint aux admins sur la school "demo-school" UNIQUEMENT.
-    // N'autorise jamais un utilisateur non-admin, même sur demo-school.
-    // À désactiver complètement en production : remplacer par `return false;`
+    // ⚠️ SEED : Désactivé en production. Ne jamais réactiver sans audit de sécurité.
+    // Le seeding doit passer par l'Admin SDK (scripts hors-bande), jamais côté client.
     function isSeedAllowed(sid) {
-      return isAuthenticated()
-        && sid == 'demo-school'
-        && getRole() == 'admin';
+      return false;
     }
 
     match /schools/{schoolId} {
@@ -369,7 +369,8 @@ service cloud.firestore {
 
     // Professeurs (sous-collection school)
     match /schools/{schoolId}/teachers/{teacherId} {
-      allow read: if isSameSchool(schoolId);
+      // Les élèves ne peuvent pas lire les données des professeurs
+      allow read: if isSameSchool(schoolId) && (isDirection() || isProfesseur());
       allow create, update: if isDirectionSameSchool(schoolId)
         && incomingDataBelongsToMySchool();
       allow delete: if isDirectionSameSchool(schoolId);
@@ -425,7 +426,13 @@ service cloud.firestore {
 
     // Cours (sous-collection school)
     match /schools/{schoolId}/courses/{courseId} {
-      allow read: if isSameSchool(schoolId);
+      // Les élèves ne voient que les cours publiés de leur classe (anti-fuite de brouillons)
+      allow read: if isSameSchool(schoolId)
+        && (isDirection()
+            || isProfesseur()
+            || (isEleve()
+                && resource.data.isPublished == true
+                && request.auth.token.classeId in resource.data.classeIds));
       allow create: if isProfesseurSameSchool(schoolId)
         && request.resource.data.authorId == request.auth.uid;
       allow update, delete: if isProfesseurSameSchool(schoolId)
@@ -436,7 +443,13 @@ service cloud.firestore {
 
     // Exercices (sous-collection school)
     match /schools/{schoolId}/exercises/{exerciseId} {
-      allow read: if isSameSchool(schoolId);
+      // Les élèves ne voient que les exercices publiés assignés à leur classe
+      allow read: if isSameSchool(schoolId)
+        && (isDirection()
+            || isProfesseur()
+            || (isEleve()
+                && resource.data.isPublished == true
+                && request.auth.token.classeId in resource.data.classeIds));
       allow create: if isProfesseurSameSchool(schoolId)
         && request.resource.data.authorId == request.auth.uid;
       allow update, delete: if isProfesseurSameSchool(schoolId)

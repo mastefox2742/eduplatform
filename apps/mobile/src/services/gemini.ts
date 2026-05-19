@@ -70,8 +70,6 @@ export async function askGemini(params: {
       temperature,
       maxOutputTokens: maxTokens,
       topP:            0.95,
-      // thinkingBudget:0 désactive le mode "thinking" de Gemini 2.5 → réponses plus rapides
-      thinkingConfig: { thinkingBudget: 0 },
     },
   }
 
@@ -79,9 +77,13 @@ export async function askGemini(params: {
     body.system_instruction = { parts: [{ text: systemInstruction }] }
   }
 
-  const response = await fetch(`${API_URL}?key=${apiKey}`, {
+  // Clé dans un header dédié (pas dans l'URL) → ne s'affiche pas dans les logs proxy/serveur
+  const response = await fetch(API_URL, {
     method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type':   'application/json',
+      'x-goog-api-key': apiKey,
+    },
     body:    JSON.stringify(body),
   })
 
@@ -110,3 +112,76 @@ Règles absolues :
 - Ne donne jamais directement la réponse d'un exercice : guide l'élève étape par étape.
 - Si tu ne sais pas quelque chose, dis-le honnêtement.
 `.trim()
+
+// ── Fonction utilitaire pour générer un QCM ───────────────────────────────────
+
+// Patterns d'injection de prompt à rejeter (défense multicouche)
+const INJECTION_PATTERNS = [
+  /ignore\s+(all\s+)?previous\s+instructions?/gi,
+  /oublie\s+(toutes?\s+)?tes\s+instructions?/gi,
+  /system\s*:\s*/gi,
+  /\[INST\]/gi,
+  /<<SYS>>/gi,
+  /you\s+are\s+now/gi,
+  /act\s+as\s+if/gi,
+  /forget\s+everything/gi,
+  /new\s+persona/gi,
+]
+
+/**
+ * Sanitise un texte utilisateur avant injection dans un prompt Gemini.
+ * Lève une erreur si une tentative d'injection est détectée.
+ */
+function sanitizeUserInput(text: string): string {
+  if (text.length > 2000) {
+    throw new Error('Message trop long (max 2000 caractères)')
+  }
+  for (const pattern of INJECTION_PATTERNS) {
+    if (pattern.test(text)) {
+      throw new Error('Message non autorisé détecté')
+    }
+  }
+  return text.trim()
+}
+
+export async function generateQuizFromCourse(courseContent: string, count: number = 3): Promise<any[]> {
+  // Délimiteurs XML stricts pour isoler le contenu tiers du prompt système
+  // → empêche l'injection via le contenu du cours
+  const sanitizedContent = courseContent
+    .replace(/<\/?(instruction|content|system)[^>]*>/gi, '') // Supprimer les balises sensibles
+    .slice(0, 8000) // Limite de taille
+
+  const prompt = `
+Tu es un professeur expert. Lis le cours ci-dessous et génère un QCM de ${count} questions pour tester la compréhension de l'élève.
+Tu dois renvoyer UNIQUEMENT un tableau JSON valide (pas de Markdown \`\`\`json, juste le tableau brut).
+Chaque question doit avoir ce format exact :
+{
+  "id": "q1",
+  "type": "qcm",
+  "text": "La question posée ?",
+  "options": ["Choix A", "Choix B", "Choix C", "Choix D"],
+  "correctIndex": 0,
+  "explanation": "Explication courte pourquoi c'est la bonne réponse.",
+  "points": 1
+}
+
+<content>
+${sanitizedContent}
+</content>
+`
+
+  try {
+    const rawResponse = await askGemini({
+      prompt,
+      temperature: 0.2, // Faible pour être précis et structuré
+      maxTokens: 1024,
+    })
+
+    // Nettoyer le markdown si Gemini l'ajoute quand même
+    const cleaned = rawResponse.replace(/```json/g, '').replace(/```/g, '').trim()
+    return JSON.parse(cleaned)
+  } catch (err) {
+    console.error('Erreur génération QCM:', err)
+    throw new Error('Impossible de générer le QCM. Vérifiez le format du texte.')
+  }
+}

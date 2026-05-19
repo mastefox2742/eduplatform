@@ -41,13 +41,24 @@ export const gradeExercise = functions
       throw new functions.https.HttpsError("invalid-argument", "Données de soumission invalides");
     }
 
-    // Securite: l'eleve ne peut corriger que ses propres exercices
+    // Sécurité : utiliser les JWT custom claims (signés par Firebase, infalsifiables)
+    // Ne JAMAIS lire le rôle depuis Firestore — fenêtre TOCTOU + fallback dangereux.
     const requesterId = context.auth.uid;
-    const requesterDoc = await admin.firestore().collection("users").doc(requesterId).get();
-    const role = requesterDoc.data()?.role || "student";
+    const role = (context.auth.token as any).role ?? null;
+    if (!role) {
+      throw new functions.https.HttpsError("permission-denied", "Rôle non défini dans le token");
+    }
 
-    if (role === "student" && submission.studentId !== requesterId) {
-      throw new functions.https.HttpsError("permission-denied", "Accès refusé");
+    // Forcer studentId = uid appelant côté serveur — ne jamais faire confiance au client
+    if (role === "student") {
+      submission.studentId = requesterId;
+    } else if (role === "teacher" || role === "direction") {
+      // Un prof/direction peut soumettre pour un élève — vérifier que l'élève existe
+      if (!submission.studentId) {
+        submission.studentId = requesterId;
+      }
+    } else {
+      throw new functions.https.HttpsError("permission-denied", "Rôle non autorisé");
     }
 
     try {
@@ -142,9 +153,12 @@ export const analyzeStudentProgress = functions
       periodDays?: number;
     };
 
+    // Sécurité : JWT claims uniquement (infalsifiables), pas de lecture Firestore
     const requesterId = context.auth.uid;
-    const requesterDoc = await admin.firestore().collection("users").doc(requesterId).get();
-    const role = requesterDoc.data()?.role || "student";
+    const role = (context.auth.token as any).role ?? null;
+    if (!role) {
+      throw new functions.https.HttpsError("permission-denied", "Rôle non défini dans le token");
+    }
 
     if (role === "student" && studentId !== requesterId) {
       throw new functions.https.HttpsError("permission-denied", "Accès refusé");

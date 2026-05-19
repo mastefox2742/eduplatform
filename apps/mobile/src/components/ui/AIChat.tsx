@@ -2,13 +2,13 @@
  * AIChat — Composant de chat IA réutilisable
  * Connecté à Google Gemini 1.5 Flash via l'API REST
  */
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { spacing, radius, fontSize, fontWeight, shadow, useTheme } from '@/theme'
 import { askGemini, PEDAGOGY_SYSTEM_INSTRUCTION, type GeminiContent } from '@/services/gemini'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -43,14 +43,30 @@ function toGeminiHistory(messages: Message[]): GeminiContent[] {
 
 // ── Composant ─────────────────────────────────────────────────────────────────
 
+// Rate limiting côté client : min 2s entre chaque message (anti-spam/abus)
+const MIN_REQUEST_INTERVAL_MS = 2000
+
+// Patterns d'injection de prompt détectés côté client (première ligne de défense)
+const CLIENT_INJECTION_PATTERNS = [
+  /ignore\s+(all\s+)?previous\s+instructions?/gi,
+  /oublie\s+(toutes?\s+)?tes\s+instructions?/gi,
+  /you\s+are\s+now/gi,
+  /act\s+as\s+if/gi,
+  /forget\s+everything/gi,
+]
+
 export function AIChat({ context, subject, onClose }: AIChatProps) {
+  const { colors, isDark } = useTheme()
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark])
+
   const greeting = `Bonjour ! Je suis EduBot${subject ? `, ton assistant en **${subject}**` : ''} 🤖\n\nJe suis là pour t'aider à comprendre ${context ? `"${context}"` : 'tes cours'}, résoudre des exercices et réviser efficacement.\n\nComment puis-je t'aider ?`
 
   const [messages, setMessages] = useState<Message[]>([
     { role: 'ai', content: greeting, time: now() },
   ])
-  const [input,   setInput]   = useState('')
-  const [loading, setLoading] = useState(false)
+  const [input,      setInput]      = useState('')
+  const [loading,    setLoading]    = useState(false)
+  const [lastSentAt, setLastSentAt] = useState(0)
   const scrollRef = useRef<ScrollView>(null)
 
   const scrollToEnd = () =>
@@ -59,6 +75,23 @@ export function AIChat({ context, subject, onClose }: AIChatProps) {
   const sendMessage = async () => {
     const text = input.trim()
     if (!text || loading) return
+
+    // Rate limiting côté client
+    const now_ms = Date.now()
+    if (now_ms - lastSentAt < MIN_REQUEST_INTERVAL_MS) return
+    setLastSentAt(now_ms)
+
+    // Détection basique d'injection de prompt côté client
+    const hasInjection = CLIENT_INJECTION_PATTERNS.some(p => p.test(text))
+    if (hasInjection) {
+      setMessages(prev => [...prev, {
+        role: 'ai',
+        content: '⚠️ Message non autorisé. Je suis un assistant pédagogique et ne peux pas traiter ce type de demande.',
+        time: now(),
+      }])
+      setInput('')
+      return
+    }
 
     const userMsg: Message = { role: 'user', content: text, time: now() }
     const nextMessages = [...messages, userMsg]
@@ -220,18 +253,18 @@ export function AIChat({ context, subject, onClose }: AIChatProps) {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
   header: {
     flexDirection:     'row',
     justifyContent:    'space-between',
     alignItems:        'center',
-    backgroundColor:   colors.white,
+    backgroundColor:   colors.surface,
     paddingHorizontal: spacing.md,
     paddingVertical:   spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
+    borderBottomColor: colors.border,
   },
   headerLeft:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   aiAvatar: {
@@ -262,7 +295,7 @@ const styles = StyleSheet.create({
     padding:      spacing.sm,
   },
   bubbleAI: {
-    backgroundColor:        colors.white,
+    backgroundColor:        colors.surface,
     borderBottomLeftRadius: 4,
     ...shadow.sm,
     minWidth:               48,
@@ -301,14 +334,14 @@ const styles = StyleSheet.create({
     flexDirection:    'row',
     alignItems:       'flex-end',
     padding:          spacing.sm,
-    backgroundColor:  colors.white,
+    backgroundColor:  colors.surface,
     borderTopWidth:   1,
-    borderTopColor:   colors.gray[100],
+    borderTopColor:   colors.border,
     gap:              spacing.sm,
   },
   input: {
     flex:              1,
-    backgroundColor:   colors.gray[50],
+    backgroundColor:   isDark ? colors.gray[800] : colors.gray[50],
     borderRadius:      radius.lg,
     paddingHorizontal: spacing.md,
     paddingVertical:   spacing.sm,
@@ -316,7 +349,7 @@ const styles = StyleSheet.create({
     color:             colors.gray[900],
     maxHeight:         100,
     borderWidth:       1,
-    borderColor:       colors.gray[200],
+    borderColor:       colors.border,
   },
   sendBtn: {
     width:           40,

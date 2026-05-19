@@ -167,12 +167,23 @@ export const exportUserData = functions.https.onCall(
     const callerUid = request.auth.uid;
     const targetUid = request.data.targetUid ?? callerUid;
 
-    // Un élève ne peut exporter que ses propres données
-    if (targetUid !== callerUid && claims.role === "eleve") {
-      throw new functions.https.HttpsError(
-        "permission-denied",
-        "Students can only export their own data"
-      );
+    // Seul l'utilisateur lui-même ou la direction de son école peut exporter les données.
+    // Les teachers n'ont PAS accès aux exports tiers (risque RGPD cross-tenant).
+    if (targetUid !== callerUid) {
+      if (claims.role !== "direction") {
+        throw new functions.https.HttpsError(
+          "permission-denied",
+          "Only direction can export data of other users"
+        );
+      }
+      // La direction ne peut exporter que les comptes de son propre établissement
+      const targetDoc = await db.collection("users").doc(targetUid).get();
+      if (!targetDoc.exists || targetDoc.data()?.schoolId !== claims.schoolId) {
+        throw new functions.https.HttpsError(
+          "not-found",
+          "User not found in this school"
+        );
+      }
     }
 
     // Collecter toutes les données de l'utilisateur

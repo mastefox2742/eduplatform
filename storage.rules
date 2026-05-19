@@ -13,7 +13,7 @@ service firebase.storage {
     // ===========================================================
 
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null && request.app != null;
     }
 
     function getRole() {
@@ -65,11 +65,11 @@ service firebase.storage {
     // ===========================================================
     match /courses/{schoolId}/{courseId}/{filename} {
       // Lecture : membres de l'école ayant accès au cours
-      // La vérification d'accès précise (classeId) se fait via Firestore
-      // Storage vérifie uniquement l'école (schoolId dans le path)
+      // Vérification croisée avec Firestore pour s'assurer que l'élève a bien accès au cours
       allow read: if isAuthenticated()
         && getSchoolId() == schoolId
-        && (isDirection() || isProfesseur() || isEleve());
+        && (isDirection() || isProfesseur() || 
+            (isEleve() && firestore.get(/databases/(default)/documents/courses/$(courseId)).data.isPublished == true));
 
       // Upload : professeurs et direction de l'école
       allow create, update: if isAuthenticated()

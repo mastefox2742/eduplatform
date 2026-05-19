@@ -91,8 +91,12 @@ export function decrypt(ciphertext: string): string {
  * Non réversible - uniquement pour la comparaison et les logs anonymisés
  */
 export function hashSHA256(value: string): string {
+  const hashSalt = process.env.HASH_SALT;
+  if (!hashSalt) {
+    throw new Error("HASH_SALT environment variable is not set. Configure it in Firebase Secret Manager.");
+  }
   return crypto
-    .createHmac("sha256", process.env.HASH_SALT ?? "default-salt")
+    .createHmac("sha256", hashSalt)
     .update(value)
     .digest("hex");
 }

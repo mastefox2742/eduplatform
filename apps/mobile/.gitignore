@@ -14,3 +14,11 @@ ios/
 
 # Dependencies
 node_modules/
+
+# Variables d'environnement — NE JAMAIS commiter ces fichiers
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test

@@ -27,11 +27,7 @@ function AuthGuard() {
     if (!user) {
       // Pas connecté → login
       if (!inAuthGroup) router.replace('/(auth)/login')
-    } else if (!profile) {
-      // Connecté Firebase mais profil Firestore absent/non chargé
-      // → accès refusé pour éviter qu'un token valide sans profil accède aux routes protégées
-      if (!inAuthGroup) router.replace('/(auth)/login')
-    } else {
+    } else if (profile) {
       // Connecté + profil chargé → redirection selon le rôle
       if (inAuthGroup) {
         if (profile.role === UserRole.STUDENT) {
@@ -46,6 +42,8 @@ function AuthGuard() {
           router.replace('/(teacher)/')
         }
       }
+      // Note sécurité : si user != null mais profile == null (erreur réseau Firestore),
+      // on ne redirige pas — les Firestore Security Rules (JWT claims) protègent les données.
     }
   }, [user, profile, isLoading, segments])
 

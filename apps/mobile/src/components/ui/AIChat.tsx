@@ -47,12 +47,13 @@ function toGeminiHistory(messages: Message[]): GeminiContent[] {
 const MIN_REQUEST_INTERVAL_MS = 2000
 
 // Patterns d'injection de prompt détectés côté client (première ligne de défense)
+// Pas de flag `g` → les regex ne sont pas stateful, safe avec le moteur Hermes (Android)
 const CLIENT_INJECTION_PATTERNS = [
-  /ignore\s+(all\s+)?previous\s+instructions?/gi,
-  /oublie\s+(toutes?\s+)?tes\s+instructions?/gi,
-  /you\s+are\s+now/gi,
-  /act\s+as\s+if/gi,
-  /forget\s+everything/gi,
+  /ignore\s+(all\s+)?previous\s+instructions?/i,
+  /oublie\s+(toutes?\s+)?tes\s+instructions?/i,
+  /you\s+are\s+now/i,
+  /act\s+as\s+if/i,
+  /forget\s+everything/i,
 ]
 
 export function AIChat({ context, subject, onClose }: AIChatProps) {

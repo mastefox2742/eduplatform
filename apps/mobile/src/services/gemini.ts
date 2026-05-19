@@ -70,6 +70,7 @@ export async function askGemini(params: {
       temperature,
       maxOutputTokens: maxTokens,
       topP:            0.95,
+      thinkingConfig:  { thinkingBudget: 0 }, // Désactive le mode "thinking" pour gemini-2.5-flash (plus rapide)
     },
   }
 
@@ -116,16 +117,17 @@ Règles absolues :
 // ── Fonction utilitaire pour générer un QCM ───────────────────────────────────
 
 // Patterns d'injection de prompt à rejeter (défense multicouche)
+// Pas de flag `g` → les regex ne sont pas stateful (lastIndex figé), safe avec Hermes
 const INJECTION_PATTERNS = [
-  /ignore\s+(all\s+)?previous\s+instructions?/gi,
-  /oublie\s+(toutes?\s+)?tes\s+instructions?/gi,
-  /system\s*:\s*/gi,
-  /\[INST\]/gi,
-  /<<SYS>>/gi,
-  /you\s+are\s+now/gi,
-  /act\s+as\s+if/gi,
-  /forget\s+everything/gi,
-  /new\s+persona/gi,
+  /ignore\s+(all\s+)?previous\s+instructions?/i,
+  /oublie\s+(toutes?\s+)?tes\s+instructions?/i,
+  /system\s*:\s*/i,
+  /\[INST\]/i,
+  /<<SYS>>/i,
+  /you\s+are\s+now/i,
+  /act\s+as\s+if/i,
+  /forget\s+everything/i,
+  /new\s+persona/i,
 ]
 
 /**

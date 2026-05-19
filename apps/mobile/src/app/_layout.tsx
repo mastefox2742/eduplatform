@@ -3,7 +3,6 @@ import { Stack, router, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { ThemeProvider, DarkTheme, DefaultTheme } from '@react-navigation/native'
 import * as SplashScreen from 'expo-splash-screen'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/theme'
@@ -55,20 +54,18 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={isDark ? DarkTheme : DefaultTheme}>
-        <SafeAreaProvider style={{ backgroundColor: colors.background }}>
-          <StatusBar style={isDark ? 'light' : 'dark'} />
-          <AuthGuard />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(student)" />
-            <Stack.Screen name="(teacher)" />
-            <Stack.Screen name="(direction)" />
-            <Stack.Screen name="(parent)" />
-          </Stack>
-        </SafeAreaProvider>
-      </ThemeProvider>
+      <SafeAreaProvider style={{ backgroundColor: colors.background }}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <AuthGuard />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(student)" />
+          <Stack.Screen name="(teacher)" />
+          <Stack.Screen name="(direction)" />
+          <Stack.Screen name="(parent)" />
+        </Stack>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   )
 }

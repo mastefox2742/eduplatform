@@ -5,19 +5,27 @@ import {
   ScrollView, View, Text, StyleSheet,
   TouchableOpacity, Dimensions, StatusBar,
 } from 'react-native'
+import { useMemo } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useAuth } from '@/hooks/useAuth'
 import { BurgerMenu } from '@/components/ui/BurgerMenu'
-import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { spacing, radius, fontSize, fontWeight, shadow, useTheme } from '@/theme'
+
+// We extract QUICK_STATS, QUICK_ACCESS, RECENT_COURSES, TODAY_SCHEDULE outside if possible,
+// but they rely on `colors`. We can pass `colors` to them or just map them inside the component.
+// Since they are defined outside, let's just leave the icons/base colors as is for the demo
+// (or assume they adapt).
+// Wait, `QUICK_STATS` uses `colors.primary`. I should keep `import { colors as staticColors } from '@/theme'` just for the static constants if needed, or I can define them inside the component.
+
 
 const { width: SCREEN_W } = Dimensions.get('window')
 const CARD_SIZE = (SCREEN_W - spacing.lg * 2 - spacing.sm) / 2
 
 // ── Données ───────────────────────────────────────────────────────────────────
 
-const QUICK_STATS = [
+const getQuickStats = (colors: any) => [
   { label: 'Moyenne',   value: '14.2', unit: '/20',     color: colors.primary,  icon: 'trending-up' as const },
   { label: 'Absences',  value: '2',    unit: 'jours',   color: '#F59E0B',       icon: 'time'        as const },
   { label: 'Cours',     value: '6',    unit: '/semaine', color: '#8b5cf6',      icon: 'book'        as const },
@@ -49,6 +57,10 @@ const TODAY_SCHEDULE = [
 export default function HomeScreen() {
   const { profile } = useAuth()
   const router      = useRouter()
+  const { colors, isDark } = useTheme()
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark])
+
+  const QUICK_STATS = useMemo(() => getQuickStats(colors), [colors])
 
   const fullName  = profile?.displayName ?? 'Élève'
   const initials  = fullName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -58,7 +70,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.white} />
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.surface} />
 
       {/* ── Barre de navigation ──────────────────────── */}
       <View style={styles.topBar}>
@@ -90,14 +102,32 @@ export default function HomeScreen() {
           <View style={styles.welcomeLeft}>
             <Text style={styles.greetingText}>{greeting},</Text>
             <Text style={styles.welcomeName}>{fullName}</Text>
-            <View style={styles.classBadge}>
-              <Ionicons name="school-outline" size={12} color={colors.primary} />
-              <Text style={styles.classBadgeText}>{classe}</Text>
+            <View style={styles.badgesRow}>
+              <View style={styles.classBadge}>
+                <Ionicons name="school-outline" size={12} color={colors.primary} />
+                <Text style={styles.classBadgeText}>{classe}</Text>
+              </View>
+              <View style={styles.xpBadge}>
+                <Ionicons name="star" size={12} color="#F59E0B" />
+                <Text style={styles.xpText}>Lvl 12 (1250 XP)</Text>
+              </View>
             </View>
           </View>
           <View style={styles.avatarCircle}>
             <Text style={styles.avatarInitials}>{initials}</Text>
           </View>
+        </View>
+
+        {/* ── Progression Gamifiée (XP) ────────────────── */}
+        <View style={styles.xpContainer}>
+          <View style={styles.xpHeader}>
+            <Text style={styles.xpTitle}>Progression vers le Niveau 13</Text>
+            <Text style={styles.xpPoints}>1250 / 1500 XP</Text>
+          </View>
+          <View style={styles.xpBg}>
+            <View style={[styles.xpFill, { width: '83%' }]} />
+          </View>
+          <Text style={styles.xpSubtitle}>Gagne de l'XP en terminant tes exercices !</Text>
         </View>
 
         {/* ── Alerte frais ─────────────────────────────── */}
@@ -208,15 +238,15 @@ export default function HomeScreen() {
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background },
   scroll:    { paddingBottom: 40 },
 
   // Top bar
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.lg, paddingVertical: 10,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   topLeft:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   schoolLogo: {
@@ -235,14 +265,14 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 8, right: 6,
     width: 8, height: 8, borderRadius: 4,
     backgroundColor: colors.error,
-    borderWidth: 1.5, borderColor: colors.white,
+    borderWidth: 1.5, borderColor: colors.surface,
   },
-  divider: { height: 1, backgroundColor: colors.gray[100] },
+  divider: { height: 1, backgroundColor: colors.border },
 
   // Welcome
   welcomeSection: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     paddingHorizontal: spacing.lg, paddingVertical: spacing.lg,
     marginBottom: spacing.sm,
     borderBottomWidth: 3, borderBottomColor: colors.primary + '20',
@@ -250,13 +280,23 @@ const styles = StyleSheet.create({
   welcomeLeft:   { flex: 1 },
   greetingText:  { fontSize: fontSize.sm, color: colors.gray[500] },
   welcomeName:   { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: colors.gray[900], marginVertical: 4, lineHeight: 30 },
+  badgesRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 4,
+  },
   classBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: colors.primary + '12',
     paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: radius.full, alignSelf: 'flex-start', marginTop: 4,
+    borderRadius: radius.full,
   },
   classBadgeText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.semibold },
+  xpBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#F59E0B12',
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: radius.full,
+  },
+  xpText: { fontSize: fontSize.xs, color: '#F59E0B', fontWeight: fontWeight.bold },
   avatarCircle: {
     width: 60, height: 60, borderRadius: 30,
     backgroundColor: colors.primary,
@@ -266,12 +306,25 @@ const styles = StyleSheet.create({
   },
   avatarInitials: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.white },
 
+  // Gamification (XP)
+  xpContainer: {
+    marginHorizontal: spacing.lg, marginBottom: spacing.md,
+    backgroundColor: colors.surface, borderRadius: radius.lg,
+    padding: spacing.md, ...shadow.sm,
+  },
+  xpHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
+  xpTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.gray[900] },
+  xpPoints: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: '#F59E0B' },
+  xpBg: { height: 8, backgroundColor: colors.gray[100], borderRadius: radius.full, overflow: 'hidden' },
+  xpFill: { height: '100%', backgroundColor: '#F59E0B', borderRadius: radius.full },
+  xpSubtitle: { fontSize: 10, color: colors.gray[500], marginTop: spacing.xs, fontStyle: 'italic' },
+
   // Alert
   alertBanner: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     marginHorizontal: spacing.lg, marginBottom: spacing.md,
-    backgroundColor: '#FEF2F2', borderRadius: radius.lg,
-    padding: spacing.md, borderWidth: 1, borderColor: '#FECACA',
+    backgroundColor: isDark ? '#451a1a' : '#FEF2F2', borderRadius: radius.lg,
+    padding: spacing.md, borderWidth: 1, borderColor: isDark ? '#7f1d1d' : '#FECACA',
   },
   alertTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.error },
   alertSub:   { fontSize: fontSize.xs, color: '#DC2626', marginTop: 1 },
@@ -286,7 +339,7 @@ const styles = StyleSheet.create({
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   statCard: {
     width: CARD_SIZE, height: CARD_SIZE,
-    backgroundColor: colors.white, borderRadius: radius.xl,
+    backgroundColor: colors.surface, borderRadius: radius.xl,
     padding: spacing.md, justifyContent: 'space-between',
     borderTopWidth: 3, ...shadow.sm,
   },
@@ -298,7 +351,7 @@ const styles = StyleSheet.create({
   // Quick access
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   quickCard: {
-    flex: 1, minWidth: '44%', backgroundColor: colors.white,
+    flex: 1, minWidth: '44%', backgroundColor: colors.surface,
     borderRadius: radius.lg, padding: spacing.md,
     alignItems: 'flex-start', gap: 4, ...shadow.sm,
   },
@@ -309,7 +362,7 @@ const styles = StyleSheet.create({
   quickDot: {
     position: 'absolute', top: 2, right: 2,
     width: 10, height: 10, borderRadius: 5,
-    backgroundColor: colors.error, borderWidth: 1.5, borderColor: colors.white,
+    backgroundColor: colors.error, borderWidth: 1.5, borderColor: colors.surface,
   },
   quickLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.gray[900] },
   quickSub:   { fontSize: fontSize.xs, color: colors.gray[500], lineHeight: 15 },
@@ -317,13 +370,13 @@ const styles = StyleSheet.create({
   // Courses
   courseCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.white, borderRadius: radius.lg,
+    backgroundColor: colors.surface, borderRadius: radius.lg,
     padding: spacing.md, marginBottom: spacing.sm, ...shadow.sm,
   },
   courseEmoji:   { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.gray[50], alignItems: 'center', justifyContent: 'center' },
   courseSubject: { fontSize: fontSize.xs, color: colors.gray[500], fontWeight: fontWeight.medium },
   courseTitle:   { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.gray[800], marginVertical: 2 },
-  progressBg:    { height: 4, backgroundColor: colors.gray[100], borderRadius: radius.full, overflow: 'hidden' },
+  progressBg:    { height: 4, backgroundColor: isDark ? colors.gray[800] : colors.gray[100], borderRadius: radius.full, overflow: 'hidden' },
   progressFill:  { height: '100%', backgroundColor: colors.primary, borderRadius: radius.full },
   coursePct:     { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.primary },
 
@@ -334,7 +387,7 @@ const styles = StyleSheet.create({
   scheduleDot:      { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
   scheduleConnector:{ flex: 1, width: 2, backgroundColor: colors.gray[200], marginTop: 4, minHeight: 28 },
   scheduleCard: {
-    flex: 1, backgroundColor: colors.white, borderRadius: radius.md,
+    flex: 1, backgroundColor: colors.surface, borderRadius: radius.md,
     padding: spacing.sm, marginBottom: spacing.sm,
     borderLeftWidth: 3, ...shadow.sm,
   },

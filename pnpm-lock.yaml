@@ -99,6 +99,9 @@ importers:
       '@babel/core':
         specifier: ^7.25.0
         version: 7.29.0
+      '@react-native/assets-registry':
+        specifier: ^0.85.3
+        version: 0.85.3
       '@school/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -1951,6 +1954,10 @@ packages:
   '@react-native/assets-registry@0.74.88':
     resolution: {integrity: sha512-tOvA+ikxa0Yxk3gLWR4+Pp4Y6Se+JEs6XXabX4/jgxIDnDfhT/czFNhqH/hdk4uOT8uVJGnilvevsia2TCFMiw==}
     engines: {node: '>=18'}
+
+  '@react-native/assets-registry@0.85.3':
+    resolution: {integrity: sha512-u9ZiYP23vA2IFtdFQFmetzSmk6SM0xgKIoiOsr1hXNHjHaLhOm+/Ph1ud57wX6+Dbwdzx8coJgnzSKL3W21PCg==}
+    engines: {node: ^20.19.4 || ^22.13.0 || ^24.3.0 || >= 25.0.0}
 
   '@react-native/babel-plugin-codegen@0.74.87':
     resolution: {integrity: sha512-+vJYpMnENFrwtgvDfUj+CtVJRJuUnzAUYT0/Pb68Sq9RfcZ5xdcCuUgyf7JO+akW2VTBoJY427wkcxU30qrWWw==}
@@ -9263,6 +9270,8 @@ snapshots:
 
   '@react-native/assets-registry@0.74.88':
     optional: true
+
+  '@react-native/assets-registry@0.85.3': {}
 
   '@react-native/babel-plugin-codegen@0.74.87(@babel/preset-env@7.29.5(@babel/core@7.29.0))':
     dependencies:

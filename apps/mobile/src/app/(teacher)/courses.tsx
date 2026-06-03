@@ -12,6 +12,9 @@ import { Ionicons } from '@expo/vector-icons'
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { generateQuizFromCourse } from '@/services/gemini'
+import { addExercise } from '@/services/firestore'
+import { notifyNewExercise } from '@/services/notifications'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface Course {
@@ -243,7 +246,43 @@ function CourseModal({ visible, course, onClose, onSave }: {
 function PreviewModal({ visible, course, onClose, onEdit }: {
   visible: boolean; course: Course | null; onClose: () => void; onEdit: () => void
 }) {
+  const [generating, setGenerating] = useState(false)
+
   if (!course) return null
+
+  const handleGenerateQuiz = async () => {
+    try {
+      setGenerating(true)
+      const quiz = await generateQuizFromCourse(course.content, 3)
+      
+      // Sauvegarder dans Firestore (Simulation Banque d'exercices)
+      await addExercise('demo-school', {
+        title: `QCM IA: ${course.title}`,
+        subject: course.subject,
+        teacher: 'M. Leblanc', // Simulé
+        classTarget: course.classTarget,
+        color: '#8b5cf6',
+        icon: '🤖',
+        difficulty: 'Moyen',
+        duration: '10 min',
+        questions: quiz,
+      })
+
+      // Simuler l'envoi d'une Notification Push aux élèves
+      await notifyNewExercise(`QCM: ${course.title}`, course.subject, 'Demain')
+
+      setGenerating(false)
+      Alert.alert(
+        '✨ QCM Généré avec succès !',
+        `L'IA a généré ${quiz.length} questions et les a publiées aux élèves.`,
+        [{ text: 'Super !' }]
+      )
+    } catch (err: any) {
+      setGenerating(false)
+      Alert.alert('Erreur', err.message)
+    }
+  }
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
@@ -267,6 +306,22 @@ function PreviewModal({ visible, course, onClose, onEdit }: {
           <View style={styles.previewContent}>
             <Text style={styles.previewContentText}>{course.content}</Text>
           </View>
+          
+          <TouchableOpacity 
+            style={[styles.generateQuizBtn, generating && { opacity: 0.7 }]}
+            onPress={handleGenerateQuiz}
+            disabled={generating}
+          >
+            {generating ? (
+              <ActivityIndicator color={colors.white} size="small" />
+            ) : (
+              <>
+                <Text style={{ fontSize: 18 }}>✨</Text>
+                <Text style={styles.generateQuizText}>Générer un QCM (IA)</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
           <Text style={styles.previewDate}>Mis à jour le {course.updatedAt}</Text>
         </ScrollView>
       </SafeAreaView>
@@ -473,5 +528,12 @@ const styles = StyleSheet.create({
   previewMetaDot:    { color: colors.gray[300] },
   previewContent:    { backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.lg, ...shadow.sm, marginBottom: spacing.md },
   previewContentText:{ fontSize: fontSize.base, color: colors.gray[800], lineHeight: 26 },
-  previewDate:       { fontSize: fontSize.xs, color: colors.gray[400], textAlign: 'center' },
+  previewDate:       { fontSize: fontSize.xs, color: colors.gray[400], textAlign: 'center', marginTop: spacing.md },
+
+  generateQuizBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    backgroundColor: '#8b5cf6', borderRadius: radius.lg, padding: spacing.md,
+    ...shadow.sm,
+  },
+  generateQuizText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.white },
 })

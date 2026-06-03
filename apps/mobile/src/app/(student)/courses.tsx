@@ -8,7 +8,8 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
 import { BurgerMenu } from '@/components/ui/BurgerMenu'
 import { AIChat } from '@/components/ui/AIChat'
@@ -194,7 +195,12 @@ function CourseReader({ course, onClose, onMarkRead }: {
 }
 
 // ── Course Card ───────────────────────────────────────────────────────────────
-function CourseCard({ course, onPress }: { course: Course; onPress: () => void }) {
+function CourseCard({ course, isDownloaded, onToggleDownload, onPress }: { 
+  course: Course; 
+  isDownloaded: boolean;
+  onToggleDownload: () => void;
+  onPress: () => void 
+}) {
   const subjectColor = SUBJECT_COLORS[course.subject] ?? colors.primary
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.85}>
@@ -213,8 +219,25 @@ function CourseCard({ course, onPress }: { course: Course; onPress: () => void }
         </View>
         <Text style={styles.cardTitle} numberOfLines={2}>{course.title}</Text>
         <View style={styles.cardFooter}>
-          <Text style={styles.cardTeacher}>{course.teacherName}</Text>
-          <Text style={styles.cardTime}>⏱ {course.readTime} min</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.cardTeacher}>{course.teacherName}</Text>
+            {isDownloaded && (
+              <View style={styles.offlineBadge}>
+                <Ionicons name="cloud-done" size={12} color="#059669" />
+                <Text style={styles.offlineText}>Hors-Ligne</Text>
+              </View>
+            )}
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Text style={styles.cardTime}>⏱ {course.readTime} min</Text>
+            <TouchableOpacity onPress={onToggleDownload} style={styles.downloadBtn}>
+              <Ionicons 
+                name={isDownloaded ? "cloud-offline" : "cloud-download-outline"} 
+                size={18} 
+                color={isDownloaded ? colors.error : colors.primary} 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -227,6 +250,32 @@ export default function StudentCoursesScreen() {
   const [activeSubject, setActiveSubject] = useState('Tous')
   const [search,        setSearch]        = useState('')
   const [openCourse,    setOpenCourse]    = useState<Course | null>(null)
+  const [downloaded,    setDownloaded]    = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    // Load downloaded status from AsyncStorage
+    AsyncStorage.getItem('@downloaded_courses').then(data => {
+      if (data) {
+        try {
+          const list = JSON.parse(data)
+          setDownloaded(new Set(list))
+        } catch (e) {}
+      }
+    })
+  }, [])
+
+  const toggleDownload = async (course: Course) => {
+    const newSet = new Set(downloaded)
+    if (newSet.has(course.id)) {
+      newSet.delete(course.id)
+      await AsyncStorage.removeItem(`@course_${course.id}`)
+    } else {
+      newSet.add(course.id)
+      await AsyncStorage.setItem(`@course_${course.id}`, JSON.stringify(course))
+    }
+    setDownloaded(newSet)
+    await AsyncStorage.setItem('@downloaded_courses', JSON.stringify(Array.from(newSet)))
+  }
 
   const readCount = courses.filter(c => c.read).length
 
@@ -294,7 +343,12 @@ export default function StudentCoursesScreen() {
         data={filtered}
         keyExtractor={c => c.id}
         renderItem={({ item }) => (
-          <CourseCard course={item} onPress={() => setOpenCourse(item)} />
+          <CourseCard 
+            course={item} 
+            isDownloaded={downloaded.has(item.id)}
+            onToggleDownload={() => toggleDownload(item)}
+            onPress={() => setOpenCourse(item)} 
+          />
         )}
         contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 40 }}
         ListEmptyComponent={
@@ -351,6 +405,9 @@ const styles = StyleSheet.create({
   cardFooter:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTeacher:  { fontSize: fontSize.xs, color: colors.gray[500] },
   cardTime:     { fontSize: fontSize.xs, color: colors.gray[400] },
+  downloadBtn:  { padding: 4, backgroundColor: colors.gray[50], borderRadius: radius.full, borderWidth: 1, borderColor: colors.gray[200] },
+  offlineBadge: { flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#d1fae5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm },
+  offlineText:  { fontSize: 9, color: '#059669', fontWeight: fontWeight.bold },
 
   empty:        { alignItems: 'center', paddingTop: 60, gap: spacing.sm },
   emptyText:    { fontSize: fontSize.base, color: colors.gray[400] },

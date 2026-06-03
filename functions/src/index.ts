@@ -76,3 +76,106 @@ export {
   addTeacherSolution,
   onSubmissionCreated,
 } from "./ai/functions";
+
+// ---------------------------------------------------------------
+// Paiements & Mobile Money
+// ---------------------------------------------------------------
+export {
+  initializePayment,
+  paymentWebhook,
+} from "./payments/mobileMoney";
+
+// ---------------------------------------------------------------
+// Reçus PDF
+// ---------------------------------------------------------------
+export {
+  generatePaymentReceipt,
+} from "./payments/receipt";
+
+// ---------------------------------------------------------------
+// Cycle de vie des élèves
+// ---------------------------------------------------------------
+export {
+  yearRollover,
+  archiveStudent,
+} from "./firebase/yearRollover";
+
+export {
+  processCascadeDelete,
+} from "./firebase/cascadeDelete";
+
+// ---------------------------------------------------------------
+// Export Universel (XLSX / CSV)
+// ---------------------------------------------------------------
+export {
+  requestExport,
+  processExportJob,
+} from "./exports/universalExport";
+
+// ---------------------------------------------------------------
+// Paie & RH Enseignants
+// ---------------------------------------------------------------
+export {
+  generateMonthlyPayroll,
+  validatePayslip,
+} from "./payroll/payroll";
+
+// ---------------------------------------------------------------
+// Budget & Trésorerie
+// ---------------------------------------------------------------
+export {
+  addExpense,
+  getCashflowDashboard,
+} from "./budget/budget";
+
+// ---------------------------------------------------------------
+// Rapports Ministériels
+// ---------------------------------------------------------------
+export {
+  generateMinistryReport,
+  checkReportCompliance,
+} from "./reports/ministryReports";
+
+// ---------------------------------------------------------------
+// Discipline & Vie scolaire
+// ---------------------------------------------------------------
+export { issueDisciplineRecord } from "./discipline/discipline";
+
+// ---------------------------------------------------------------
+// CRM Inscriptions & Relances
+// ---------------------------------------------------------------
+export {
+  sendPaymentReminders,
+  weeklyPaymentReminders,
+  upsertInscriptionLead,
+} from "./crm/relances";
+
+// ---------------------------------------------------------------
+// Pédagogie IA & Gamification
+// ---------------------------------------------------------------
+export {
+  generateFicheCours,
+  checkAndAwardBadges,
+} from "./pedagogy/ficheCours";
+
+// ---------------------------------------------------------------
+// Appréciations IA & Listes d'émargement
+// ---------------------------------------------------------------
+export {
+  generateBulletinAppreciation,
+  generateEmargementList,
+} from "./ai/appreciations";
+
+// ---------------------------------------------------------------
+// Caisse physique (espèces / chèques)
+// ---------------------------------------------------------------
+export { recordCashPayment } from "./payments/cashPayment";
+
+// ---------------------------------------------------------------
+// Messagerie WhatsApp / SMS
+// ---------------------------------------------------------------
+export {
+  sendManualAlert,
+  onAttendanceAbsence,
+} from "./messaging/whatsapp";
+

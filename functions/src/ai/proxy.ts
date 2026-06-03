@@ -14,8 +14,8 @@ const db = admin.firestore();
 // Quotas par rôle et par fenêtre temporelle
 const QUOTAS: Record<string, { maxRequests: number; windowSeconds: number }> = {
   direction: { maxRequests: 200, windowSeconds: 3600 },  // 200/heure
-  professeur: { maxRequests: 100, windowSeconds: 3600 }, // 100/heure
-  eleve: { maxRequests: 20, windowSeconds: 3600 },       // 20/heure (anti-abus)
+  teacher: { maxRequests: 100, windowSeconds: 3600 }, // 100/heure
+  student: { maxRequests: 20, windowSeconds: 3600 },       // 20/heure (anti-abus)
 };
 
 // Longueur maximale des prompts par contexte
@@ -65,7 +65,7 @@ export const callAI = functions.https.onCall(
 
     // 2. Rate limiting par utilisateur
     const userRateKey = `ai:user:${callerUid}`;
-    const quota = QUOTAS[claims.role] ?? QUOTAS.eleve;
+    const quota = QUOTAS[claims.role] ?? QUOTAS.student;
     const rateCheck = await checkRateLimit(
       userRateKey,
       quota.maxRequests,
@@ -222,8 +222,7 @@ function sanitizePrompt(prompt: string): string {
     sanitized = sanitized.replace(pattern, "[FILTERED]");
   }
 
-  // Limiter les caractères spéciaux excessifs
-  sanitized = sanitized.replace(/[^\x20-\x7EÀ-ɏ-ÿ\n]/g, "");
+  // (La limitation des caractères spéciaux a été retirée pour supporter les mathématiques et les emojis)
 
   return sanitized;
 }
@@ -266,7 +265,7 @@ async function verifyAIContextAccess(
   courseId?: string
 ): Promise<void> {
   // La génération de quiz est réservée aux professeurs et direction
-  if (context === "quiz_generation" && claims.role === "eleve") {
+  if (context === "quiz_generation" && claims.role === "student") {
     throw new functions.https.HttpsError(
       "permission-denied",
       "Students cannot generate quizzes"
@@ -288,8 +287,8 @@ async function verifyAIContextAccess(
 function getMaxTokensForRole(role: string): number {
   const limits: Record<string, number> = {
     direction: 4000,
-    professeur: 2000,
-    eleve: 1000,
+    teacher: 2000,
+    student: 1000,
   };
   return limits[role] ?? 500;
 }
@@ -317,6 +316,7 @@ async function callGeminiAPI(
   userPrompt: string,
   maxTokens: number
 ): Promise<{ text: string; tokensUsed: number }> {
+  // Clé dans le header x-goog-api-key (PAS dans l'URL) → n'apparaît pas dans les logs serveur
   const GEMINI_ENDPOINT =
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
@@ -356,9 +356,12 @@ async function callGeminiAPI(
     ],
   };
 
-  const response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
+  const response = await fetch(GEMINI_ENDPOINT, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": apiKey,   // header dédié — n'apparaît pas dans les logs HTTP
+    },
     body: JSON.stringify(requestBody),
   });
 

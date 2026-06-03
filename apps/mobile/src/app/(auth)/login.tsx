@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform,
@@ -7,17 +7,21 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '@/hooks/useAuth'
-import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { spacing, radius, fontSize, fontWeight, shadow, useTheme } from '@/theme'
 
 // Comptes de démo uniquement visibles en mode développement (jamais en production)
 const DEMO_ACCOUNTS = __DEV__ ? [
   { label: '👔 Direction', email: 'direction@demo.fr', password: 'demo1234' },
   { label: '📚 Professeur', email: 'prof@demo.fr',     password: 'demo1234' },
   { label: '🎓 Élève',     email: 'eleve@demo.fr',    password: 'demo1234' },
+  { label: '👨‍👩‍👦 Parent',    email: 'parent@demo.fr',   password: 'demo1234' },
 ] : []
 
 export default function LoginScreen() {
   const { login } = useAuth()
+  const { colors, isDark } = useTheme()
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark])
+
   const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
   const [showPwd,  setShowPwd]  = useState(false)
@@ -165,10 +169,10 @@ export default function LoginScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1e3a8a',
+    backgroundColor: isDark ? colors.background : '#1e3a8a',
   },
   scroll: {
     flexGrow: 1,
@@ -201,7 +205,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   card: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: 28,
     padding: spacing.xl,
     ...shadow.lg,
@@ -232,7 +236,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radius.md,
-    backgroundColor: colors.gray[50],
+    backgroundColor: isDark ? colors.gray[800] : colors.gray[50],
     paddingHorizontal: spacing.md,
     height: 48,
   },

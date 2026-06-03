@@ -20,7 +20,12 @@
   },
   "dependencies": {
     "firebase-admin": "^12.0.0",
-    "firebase-functions": "^5.0.0"
+    "firebase-functions": "^5.0.0",
+    "pdfkit": "^0.15.0",
+    "exceljs": "^4.4.0",
+    "pdf-lib": "^1.17.1",
+    "twilio": "^5.3.3",
+    "axios": "^1.7.2"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",
@@ -30,7 +35,10 @@
     "jest": "^29.0.0",
     "ts-jest": "^29.0.0",
     "typescript": "^5.0.0",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "@types/pdfkit": "^0.13.9",
+    "@types/exceljs": "^0.5.3",
+    "@types/twilio": "^2.11.0"
   },
   "private": true
 }

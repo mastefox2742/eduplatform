@@ -25,7 +25,7 @@ const QUICK_ACTIONS = [
   { label: 'Gestion des frais',   icon: 'card-outline'           as const, color: '#3b82f6', route: '/(direction)/fees'     },
   { label: 'Liste des élèves',    icon: 'people-outline'         as const, color: '#8b5cf6', route: '/(direction)/students' },
   { label: 'Envoyer notification',icon: 'notifications-outline'  as const, color: '#f59e0b', route: null },
-  { label: 'Rapports',            icon: 'bar-chart-outline'      as const, color: '#10b981', route: null },
+  { label: 'Rapports',            icon: 'bar-chart-outline'      as const, color: '#10b981', route: '/(direction)/reports' },
 ]
 
 export default function DirectionHomeScreen() {

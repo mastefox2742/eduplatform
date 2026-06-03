@@ -1,3 +1,8 @@
+import { useColorScheme } from 'react-native'
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+
 export const colors = {
   primary:   '#2563eb',   // blue-600
   primaryDark: '#1d4ed8', // blue-700
@@ -85,4 +90,67 @@ export const shadow = {
     shadowRadius: 16,
     elevation: 6,
   },
+}
+
+export const darkColors = {
+  primary:   '#3b82f6',
+  primaryDark: '#2563eb',
+  secondary: '#8b5cf6',
+  success:   '#22c55e',
+  warning:   '#f59e0b',
+  danger:    '#ef4444',
+  error:     '#ef4444',
+  info:      '#06b6d4',
+
+  gray: {
+    50:  '#111827',
+    100: '#1f2937',
+    200: '#374151',
+    300: '#4b5563',
+    400: '#6b7280',
+    500: '#9ca3af',
+    600: '#d1d5db',
+    700: '#e5e7eb',
+    800: '#f3f4f6',
+    900: '#f9fafb',
+  },
+
+  white: '#1e293b',
+  black: '#ffffff',
+  background: '#0f172a',
+  surface:    '#1e293b',
+  border:     '#334155',
+}
+
+interface ThemeState {
+  themeMode: 'light' | 'dark' | 'system'
+  setThemeMode: (mode: 'light' | 'dark' | 'system') => void
+}
+
+export const useThemeStore = create<ThemeState>()(
+  persist(
+    (set) => ({
+      themeMode: 'light', // Par défaut en mode clair
+      setThemeMode: (mode) => set({ themeMode: mode }),
+    }),
+    {
+      name: 'theme-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+)
+
+export function useTheme() {
+  const scheme = useColorScheme()
+  const themeMode = useThemeStore((state) => state.themeMode)
+  const setThemeMode = useThemeStore((state) => state.setThemeMode)
+  
+  const isDark = themeMode === 'system' ? scheme === 'dark' : themeMode === 'dark'
+
+  return {
+    colors: isDark ? darkColors : colors,
+    isDark,
+    themeMode,
+    setThemeMode
+  }
 }

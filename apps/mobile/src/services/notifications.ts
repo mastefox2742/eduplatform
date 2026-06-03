@@ -4,19 +4,37 @@
  * Ces fonctions sont des no-ops pour éviter les crashs.
  */
 
+import { Alert } from 'react-native'
+
 export function initNotificationHandler() {}
 
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
-  return null
+  return "expo-push-token-demo"
 }
 
-export async function sendLocalNotification(_title: string, _body: string) {}
+export async function sendLocalNotification(title: string, body: string) {
+  Alert.alert(`🔔 ${title}`, body)
+}
 
-export async function notifyNewExercise(_title: string, _subject: string, _due: string) {}
-export async function notifyExerciseReviewed(_title: string, _grade: number) {}
-export async function notifyNewCourse(_title: string, _subject: string) {}
-export async function notifyFeeReminder(_label: string, _amount: number, _due: string) {}
-export async function notifySubmissionReceived(_student: string, _exercise: string) {}
+export async function notifyNewExercise(title: string, subject: string, due: string) {
+  Alert.alert('📝 Nouvel Exercice', `Le professeur a publié un exercice en ${subject} : "${title}". À rendre pour le ${due}.`)
+}
+
+export async function notifyExerciseReviewed(title: string, grade: number) {
+  Alert.alert('✅ Exercice Corrigé', `Ton exercice "${title}" a été noté : ${grade}/100.`)
+}
+
+export async function notifyNewCourse(title: string, subject: string) {
+  Alert.alert('📚 Nouveau Cours', `Un nouveau cours est disponible en ${subject} : "${title}".`)
+}
+
+export async function notifyFeeReminder(label: string, amount: number, due: string) {
+  Alert.alert('💳 Frais de Scolarité', `Rappel : La ${label} de ${amount} FCFA est à payer avant le ${due}.`)
+}
+
+export async function notifySubmissionReceived(student: string, exercise: string) {
+  Alert.alert('📥 Nouvelle Soumission', `${student} a rendu l'exercice "${exercise}".`)
+}
 
 export async function setBadgeCount(_count: number) {}
 export async function clearBadge() {}

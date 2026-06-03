@@ -2,7 +2,7 @@
  * Exercices — Interface élève
  * QCM + Vrai/Faux + soumission photo de solution manuscrite + correction IA
  */
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Modal, StatusBar, Image, ActivityIndicator,
@@ -14,6 +14,9 @@ import * as ImagePicker from 'expo-image-picker'
 import { AIChat } from '@/components/ui/AIChat'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
 import { BurgerMenu } from '@/components/ui/BurgerMenu'
+import { useAuth } from '@/hooks/useAuth'
+import { cols, saveQuizProgress } from '@/services/firestore'
+import { onSnapshot, query, orderBy } from 'firebase/firestore'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -301,6 +304,7 @@ function ExerciseModal({
   exercise: Exercise | null
   onClose: () => void
   onUpdate: (updated: Exercise) => void
+  onFinishQuiz?: (exerciseId: string, score: number) => void
 }) {
   const [qIndex,     setQIndex]     = useState(0)
   const [answers,    setAnswers]    = useState<Record<string, string>>({})
@@ -321,10 +325,20 @@ function ExerciseModal({
 
   const select = (label: string) => {
     if (showResult) return
-    setAnswers(prev => ({ ...prev, [q.id]: label }))
+    const newAnswers = { ...answers, [q.id]: label }
+    setAnswers(newAnswers)
     setTimeout(() => {
       if (qIndex < total - 1) { setQIndex(i => i + 1); setShowHint(false) }
-      else setShowResult(true)
+      else {
+        setShowResult(true)
+        const finalCorrect = exercise.questions.filter(qu => {
+          const sel = newAnswers[qu.id]
+          return sel && qu.options.find(o => o.label === sel)?.correct
+        }).length
+        const finalScore = Math.round((finalCorrect / total) * 100)
+        onUpdate({ ...exercise, completed: true, score: finalScore })
+        if (onFinishQuiz) onFinishQuiz(exercise.id, finalScore)
+      }
     }, 800)
   }
 
@@ -493,9 +507,30 @@ function ExerciseModal({
 // ── Écran principal ────────────────────────────────────────────────────────────
 
 export default function ExercisesScreen() {
+  const { profile } = useAuth()
   const [exercises,  setExercises]  = useState<Exercise[]>(INITIAL_EXERCISES)
   const [selected,   setSelected]   = useState<Exercise | null>(null)
   const [filter,     setFilter]     = useState<'all' | 'todo' | 'done' | 'submitted'>('all')
+
+  useEffect(() => {
+    const q = query(cols.exercises('demo-school'), orderBy('createdAt', 'desc'))
+    return onSnapshot(q, (snap) => {
+      const dbExs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Exercise))
+      // On combine les data locales avec celles de firestore
+      // Pour la démo, on garde INITIAL_EXERCISES en bas
+      setExercises([...dbExs, ...INITIAL_EXERCISES])
+    })
+  }, [])
+
+  const handleFinishQuiz = async (id: string, score: number) => {
+    if (profile?.id) {
+      try {
+        await saveQuizProgress('demo-school', profile.id, id, score, 100)
+      } catch (err) {
+        console.error('Erreur sauvegarde progress:', err)
+      }
+    }
+  }
 
   const FILTERS = [
     { key: 'all',       label: 'Tous',       count: exercises.length },
@@ -641,6 +676,7 @@ export default function ExercisesScreen() {
         exercise={selected}
         onClose={() => setSelected(null)}
         onUpdate={updateExercise}
+        onFinishQuiz={handleFinishQuiz}
       />
     </SafeAreaView>
   )

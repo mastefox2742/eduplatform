@@ -179,7 +179,7 @@ export const getSystemMetrics = functions.https.onCall(
 
       db.collection("users")
         .where("schoolId", "==", schoolId)
-        .where("role", "==", "professeur")
+        .where("role", "==", "teacher")
         .where("isActive", "==", true)
         .count()
         .get(),

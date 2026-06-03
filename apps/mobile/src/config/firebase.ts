@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp } from 'firebase/app'
 import { initializeAuth, getAuth, inMemoryPersistence } from 'firebase/auth'
 import { initializeFirestore, getFirestore }            from 'firebase/firestore'
 import { getStorage }                                   from 'firebase/storage'
+import { getFunctions }                                 from 'firebase/functions'
 
 // Les variables EXPO_PUBLIC_* sont visibles dans le bundle compilé.
 // Ne jamais y mettre de secrets. Les clés Firebase sont publiques par design
@@ -33,7 +34,8 @@ try {
   db = getFirestore(app)
 }
 
-const storage = getStorage(app)
+const storage   = getStorage(app)
+const functions = getFunctions(app, 'europe-west1')
 
-export { auth, db, storage }
+export { auth, db, storage, functions }
 export default app

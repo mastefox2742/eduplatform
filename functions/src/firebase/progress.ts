@@ -240,7 +240,7 @@ async function verifyProgressAccess(
   studentUid: string
 ): Promise<void> {
   // L'élève peut voir sa propre progression
-  if (claims.role === "eleve" && callerUid === studentUid) return;
+  if (claims.role === "student" && callerUid === studentUid) return;
 
   // La direction peut tout voir dans son établissement
   if (claims.role === "direction") {
@@ -249,7 +249,7 @@ async function verifyProgressAccess(
   }
 
   // Le professeur peut voir les élèves de ses classes
-  if (claims.role === "professeur") {
+  if (claims.role === "teacher") {
     const studentDoc = await db.collection("students").doc(studentUid).get();
     const student = studentDoc.data();
 

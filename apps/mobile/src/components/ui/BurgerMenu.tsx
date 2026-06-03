@@ -2,7 +2,7 @@
  * BurgerMenu — Composant partagé
  * Bouton ☰ + tiroir latéral accessible depuis toutes les pages
  */
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Modal, View, Text, TouchableOpacity,
   StyleSheet, Pressable, Image, ScrollView,
@@ -10,7 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
 import { useAuth } from '@/hooks/useAuth'
-import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { spacing, radius, fontSize, fontWeight, shadow, useTheme } from '@/theme'
 
 const MENU_ITEMS = [
   { label: 'Accueil',          icon: 'home'          as const, route: '/(student)/'          },
@@ -27,7 +27,10 @@ interface Props {
   iconColor?: string
 }
 
-export function BurgerMenu({ iconColor = colors.white }: Props) {
+export function BurgerMenu({ iconColor }: Props) {
+  const { colors, isDark, themeMode, setThemeMode } = useTheme()
+  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark])
+  
   const [visible, setVisible] = useState(false)
   const { profile, logout }   = useAuth()
   const router                = useRouter()
@@ -47,7 +50,7 @@ export function BurgerMenu({ iconColor = colors.white }: Props) {
     <>
       {/* Bouton ☰ */}
       <TouchableOpacity style={styles.btn} onPress={() => setVisible(true)} activeOpacity={0.7}>
-        <Ionicons name="menu" size={26} color={iconColor} />
+        <Ionicons name="menu" size={26} color={iconColor ?? colors.gray[800]} />
       </TouchableOpacity>
 
       {/* Tiroir */}
@@ -96,6 +99,21 @@ export function BurgerMenu({ iconColor = colors.white }: Props) {
               ))}
             </ScrollView>
 
+            {/* ── Toggle Thème ────────────── */}
+            <TouchableOpacity 
+              style={styles.themeBtn} 
+              onPress={() => setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+            >
+              <Ionicons 
+                name={themeMode === 'dark' ? 'sunny-outline' : 'moon-outline'} 
+                size={20} 
+                color={colors.primary} 
+              />
+              <Text style={styles.themeText}>
+                {themeMode === 'dark' ? 'Passer en Mode Clair' : 'Passer en Mode Sombre'}
+              </Text>
+            </TouchableOpacity>
+
             {/* ── Déconnexion (fixe en bas) ───────────── */}
             <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
               <Ionicons name="log-out-outline" size={18} color={colors.error} />
@@ -109,7 +127,7 @@ export function BurgerMenu({ iconColor = colors.white }: Props) {
   )
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
   btn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
 
   overlay: {
@@ -121,7 +139,7 @@ const styles = StyleSheet.create({
   drawer: {
     width: '78%',
     height: '100%',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     flexDirection: 'column',
     ...shadow.md,
   },
@@ -152,7 +170,7 @@ const styles = StyleSheet.create({
   navItem: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
     paddingHorizontal: spacing.lg, paddingVertical: 13,
-    borderBottomWidth: 1, borderBottomColor: colors.gray[50],
+    borderBottomWidth: 1, borderBottomColor: colors.border,
   },
   navIcon: {
     width: 36, height: 36, borderRadius: radius.md,
@@ -161,12 +179,21 @@ const styles = StyleSheet.create({
   },
   navLabel: { flex: 1, fontSize: fontSize.base, fontWeight: fontWeight.medium, color: colors.gray[800] },
 
+  // Theme Toggle
+  themeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
+    borderTopWidth: 1, borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  themeText: { fontSize: fontSize.base, color: colors.gray[800], fontWeight: fontWeight.medium },
+
   // Logout
   logoutBtn: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     paddingHorizontal: spacing.lg, paddingVertical: spacing.lg,
-    borderTopWidth: 1, borderTopColor: colors.gray[100],
-    backgroundColor: colors.white,
+    borderTopWidth: 1, borderTopColor: colors.border,
+    backgroundColor: colors.surface,
   },
   logoutText: { fontSize: fontSize.base, color: colors.error, fontWeight: fontWeight.medium },
 })

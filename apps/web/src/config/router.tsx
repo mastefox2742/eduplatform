@@ -20,6 +20,8 @@ const SchedulePage          = lazy(() => import('@/pages/direction/SchedulePage'
 const ExamRegistrationPage   = lazy(() => import('@/pages/direction/ExamRegistrationPage').then(m => ({ default: m.ExamRegistrationPage })))
 const ExamResultsPage        = lazy(() => import('@/pages/direction/ExamResultsPage').then(m => ({ default: m.ExamResultsPage })))
 const TeacherAssessmentsPage = lazy(() => import('@/pages/teacher/AssessmentsPage').then(m => ({ default: m.TeacherAssessmentsPage })))
+const ExportsPage            = lazy(() => import('@/pages/direction/ExportsPage'))
+const BudgetPage             = lazy(() => import('@/pages/direction/BudgetPage'))
 const TeacherSchedulePage   = lazy(() => import('@/pages/teacher/SchedulePage').then(m => ({ default: m.TeacherSchedulePage })))
 const TeacherClassesPage    = lazy(() => import('@/pages/teacher/ClassesPage').then(m => ({ default: m.TeacherClassesPage })))
 const TeacherCoursesPage    = lazy(() => import('@/pages/teacher/CoursesPage').then(m => ({ default: m.TeacherCoursesPage })))
@@ -138,6 +140,23 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
             <PageWrapper><ExamResultsPage /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+
+      {
+        path: 'direction/exports',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
+            <PageWrapper><ExportsPage /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'direction/budget',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
+            <PageWrapper><BudgetPage /></PageWrapper>
           </ProtectedRoute>
         ),
       },

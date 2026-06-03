@@ -42,6 +42,45 @@ export default function DirectionLayout() {
         }}
       />
       <Tabs.Screen
+        name="reports"
+        options={{
+          title: 'Rapports',
+          tabBarIcon: ({ color, size }) => <Ionicons name="bar-chart-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="teachers"
+        options={{
+          title: 'Enseignants',
+          tabBarIcon: ({ color, size }) => <Ionicons name="briefcase-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="announcements"
+        options={{
+          title: 'Annonces',
+          tabBarIcon: ({ color, size }) => <Ionicons name="megaphone-outline" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="bulletins"
+        options={{
+          title: 'Bulletins',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name={color === colors.primary ? 'document-text' : 'document-text-outline'} size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="config"
+        options={{
+          title: 'Config',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name={color === colors.primary ? 'settings' : 'settings-outline'} size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profil',

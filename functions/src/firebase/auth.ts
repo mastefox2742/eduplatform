@@ -33,12 +33,12 @@ export const onCreateUser = functions.auth.user().onCreate(
     const { uid, email, displayName } = user;
 
     // Le rôle doit être défini dans les Custom Claims lors de la création
-    // S'il n'est pas défini, on attribue "eleve" par défaut (moindre privilège)
+    // S'il n'est pas défini, on attribue "student" par défaut (moindre privilège)
     const existingClaims = (await auth.getUser(uid)).customClaims as
       | CustomClaims
       | undefined;
 
-    const role = existingClaims?.role ?? "eleve";
+    const role = existingClaims?.role ?? "student";
     const schoolId = existingClaims?.schoolId ?? "unknown";
 
     // Créer le profil utilisateur de base
@@ -167,9 +167,9 @@ export const generateStudentCredentials = functions.https.onCall(
       );
     }
 
-    // 7. Attribution des Custom Claims (rôle eleve)
+    // 7. Attribution des Custom Claims (rôle student)
     const studentClaims: CustomClaims = {
-      role: "eleve",
+      role: "student",
       schoolId,
       classeId,
     };
@@ -227,7 +227,7 @@ export const generateStudentCredentials = functions.https.onCall(
       db.collection("users").doc(userRecord.uid),
       {
         uid: userRecord.uid,
-        role: "eleve",
+        role: "student",
         schoolId,
         displayName: `${firstName} ${lastName.charAt(0)}.`,
         email: studentEmail,
@@ -287,7 +287,7 @@ export const setUserRole = functions.https.onCall(
   async (
     request: functions.https.CallableRequest<{
       targetUid: string;
-      role: "professeur" | "eleve";
+      role: "teacher" | "student";
       classeId?: string;
       teacherId?: string;
     }>

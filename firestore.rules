@@ -318,9 +318,20 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    match /_aiUsage/{document=**} {
-      // La direction voit uniquement la consommation IA de SON école (anti cross-tenant)
-      allow read: if isDirection() && resource.data.schoolId == getSchoolId();
+    // File de suppression en cascade (alimentée par Cloud Functions Admin SDK uniquement)
+    match /_deleteQueue/{document=**} {
+      allow read, write: if false;
+    }
+
+    // Compteurs séquentiels pour numéros de reçu (CF Admin SDK uniquement)
+    match /_counters/{document=**} {
+      allow read, write: if false;
+    }
+
+    // Les documents _aiUsage sont stockés sous /_aiUsage/{schoolId}/daily/{date}
+    // resource.data.schoolId n'existe pas dans ces documents — on utilise le path param
+    match /_aiUsage/{schoolId}/{document=**} {
+      allow read: if isDirection() && getSchoolId() == schoolId;
       allow write: if false;
     }
 
@@ -345,14 +356,14 @@ service cloud.firestore {
 
     // ⚠️ SEED : Désactivé en production. Ne jamais réactiver sans audit de sécurité.
     // Le seeding doit passer par l'Admin SDK (scripts hors-bande), jamais côté client.
-    function isSeedAllowed(sid) {
+    function isSeedAllowed() {
       return false;
     }
 
     match /schools/{schoolId} {
-      allow read: if isSameSchool(schoolId) || isSeedAllowed(schoolId);
+      allow read: if isSameSchool(schoolId) || isSeedAllowed();
       allow write: if isAuthenticated() && getRole() == 'admin';
-      allow write: if isSeedAllowed(schoolId);
+      allow write: if isSeedAllowed();
     }
 
     // Élèves (sous-collection school)
@@ -364,7 +375,7 @@ service cloud.firestore {
         && incomingDataBelongsToMySchool()
         && noSensitiveFields();
       allow delete: if isDirectionSameSchool(schoolId);
-      allow write: if isSeedAllowed(schoolId);
+      allow write: if isSeedAllowed();
     }
 
     // Professeurs (sous-collection school)
@@ -374,54 +385,157 @@ service cloud.firestore {
       allow create, update: if isDirectionSameSchool(schoolId)
         && incomingDataBelongsToMySchool();
       allow delete: if isDirectionSameSchool(schoolId);
-      allow write: if isSeedAllowed(schoolId);
+      allow write: if isSeedAllowed();
     }
 
     // Classes (sous-collection school)
     match /schools/{schoolId}/classes/{classId} {
       allow read: if isSameSchool(schoolId);
       allow write: if isDirectionSameSchool(schoolId);
-      allow write: if isSeedAllowed(schoolId);
+      allow write: if isSeedAllowed();
     }
 
-    // Évaluations (sous-collection school)
+    // ── Notes / Évaluations ──────────────────────────────────────────────────
+    // Chaque document = une évaluation avec le champ grades: { [studentId]: { value, comment } }
     match /schools/{schoolId}/assessments/{assessmentId} {
       // Direction voit tout
       allow read: if isDirectionSameSchool(schoolId);
-      // Les profs voient leurs évaluations
+      // Les profs voient leurs propres évaluations
       allow read: if isProfesseurSameSchool(schoolId)
         && resource.data.teacherId == request.auth.uid;
-      // Les profs créent leur propres évaluations
+      // Les élèves lisent uniquement les évaluations de leur propre classe (anti-IDOR)
+      // Sans ce filtre, un élève pourrait lire les notes de toute l'école
+      allow read: if isEleve() && isSameSchool(schoolId)
+        && resource.data.classId == request.auth.token.classeId;
+
+      // Création : prof auteur uniquement
       allow create: if isProfesseurSameSchool(schoolId)
-        && request.resource.data.teacherId == request.auth.uid
-        && incomingDataBelongsToMySchool();
-      // Les profs modifient leurs évaluations brouillon/refusées
+        && request.resource.data.teacherId == request.auth.uid;
+
+      // Mise à jour des notes : prof auteur uniquement
+      // (pas de restriction sur status — on gère via la logique applicative)
       allow update: if isProfesseurSameSchool(schoolId)
-        && resource.data.teacherId == request.auth.uid
-        && resource.data.status in ['draft', 'rejected'];
-      // La direction peut tout modifier (approbation, notes, etc.)
+        && resource.data.teacherId == request.auth.uid;
+      // La direction peut modifier (correction, validation)
       allow update: if isDirectionSameSchool(schoolId);
+
       allow delete: if isDirectionSameSchool(schoolId);
-      allow write: if isSeedAllowed(schoolId);
+      allow write:  if isSeedAllowed();
     }
 
-    // Présence professeurs (sous-collection school)
+    // ── Présences / Attendance ───────────────────────────────────────────────
+    // Document ID = {classId}_{YYYY-MM-DD}
+    // records: { [studentId]: { status, note? } }
     match /schools/{schoolId}/attendance/{recordId} {
+      // Direction lit et écrit tout
       allow read, write: if isDirectionSameSchool(schoolId);
+      // Professeur lit ses propres feuilles de présence
       allow read: if isProfesseurSameSchool(schoolId)
         && resource.data.teacherId == request.auth.uid;
+      // Professeur crée et met à jour ses propres feuilles
+      allow create: if isProfesseurSameSchool(schoolId)
+        && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isProfesseurSameSchool(schoolId)
+        && resource.data.teacherId == request.auth.uid;
+      allow write: if isSeedAllowed();
+    }
+
+    // ── Bulletins ────────────────────────────────────────────────────────────
+    // Workflow : prof soumet → direction valide/rejette → publié → visible parents
+    match /schools/{schoolId}/bulletins/{bulletinId} {
+      // Direction : accès complet
+      allow read, write: if isDirectionSameSchool(schoolId);
+
+      // Professeur : lit ses bulletins, crée (soumission), modifie si rejeté
+      allow read: if isProfesseurSameSchool(schoolId)
+        && resource.data.teacherId == request.auth.uid;
+      allow create: if isProfesseurSameSchool(schoolId)
+        && request.resource.data.teacherId == request.auth.uid
+        && request.resource.data.status == 'submitted';
+      // Resoumission après rejet : champs identifiants verrouillés, status forcé à 'submitted'
       allow update: if isProfesseurSameSchool(schoolId)
         && resource.data.teacherId == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(['justification', 'updatedAt']);
-      allow write: if isSeedAllowed(schoolId);
+        && resource.data.status == 'rejected'
+        && request.resource.data.status == 'submitted'   // Ne peut resoumettre qu'en 'submitted'
+        && fieldNotChanged('studentId')                   // Impossible de changer l'élève
+        && fieldNotChanged('teacherId')                   // Impossible de changer l'auteur
+        && fieldNotChanged('classId')                     // Impossible de changer la classe
+        && fieldNotChanged('schoolYear');                 // Impossible de changer l'année
+
+      // Parent : lit uniquement les bulletins publiés de son enfant
+      allow read: if isAuthenticated() && getRole() == 'parent'
+        && isSameSchool(schoolId)
+        && resource.data.status == 'published'
+        && resource.data.studentId in request.auth.token.childrenIds;
+
+      // Élève : lit son propre bulletin publié
+      allow read: if isEleve() && isSameSchool(schoolId)
+        && resource.data.status == 'published'
+        && resource.data.studentId == request.auth.uid;
+
+      allow write: if isSeedAllowed();
+    }
+
+    // ── Messages (threads + sous-collection msgs) ────────────────────────────
+    // Thread = conversation entre participants
+    match /schools/{schoolId}/messages/{threadId} {
+      // Lecture : participants uniquement
+      allow read: if isSameSchool(schoolId)
+        && request.auth.uid in resource.data.participants;
+      // Création : tout membre de l'école peut démarrer un thread
+      allow create: if isSameSchool(schoolId)
+        && request.auth.uid in request.resource.data.participants;
+      // Mise à jour : participants (pour lastMessage, unreadCounts, etc.)
+      allow update: if isSameSchool(schoolId)
+        && request.auth.uid in resource.data.participants;
+      // Direction peut lire tous les threads (modération)
+      allow read: if isDirectionSameSchool(schoolId);
+      allow delete: if isDirectionSameSchool(schoolId);
+
+      // Sous-collection messages individuels
+      match /msgs/{msgId} {
+        // Participants du thread peuvent lire et écrire
+        allow read, write: if isSameSchool(schoolId)
+          && request.auth.uid in get(/databases/$(database)/documents/schools/$(schoolId)/messages/$(threadId)).data.participants;
+        // Direction peut lire (modération)
+        allow read: if isDirectionSameSchool(schoolId);
+      }
+    }
+
+    // ── Annonces ────────────────────────────────────────────────────────────
+    match /schools/{schoolId}/announcements/{announcementId} {
+      // Lecture : tous les membres de l'école
+      allow read: if isSameSchool(schoolId);
+      // Création et modification : direction uniquement
+      allow create, update: if isDirectionSameSchool(schoolId)
+        && textFieldsWithinLimits();
+      // Marquer comme lu (readBy) : tout membre de l'école
+      // On autorise uniquement la mise à jour du champ readBy
+      allow update: if isSameSchool(schoolId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
+      allow delete: if isDirectionSameSchool(schoolId);
+      allow write: if isSeedAllowed();
+    }
+
+    // ── Configuration de l'école ─────────────────────────────────────────────
+    match /schools/{schoolId}/school_config/{configId} {
+      allow read:  if isSameSchool(schoolId);
+      allow write: if isDirectionSameSchool(schoolId);
+      allow write: if isSeedAllowed();
+    }
+
+    // ── Emplois du temps ────────────────────────────────────────────────────
+    match /schools/{schoolId}/schedules/{slotId} {
+      allow read: if isSameSchool(schoolId);
+      allow write: if isDirectionSameSchool(schoolId);
+      allow write: if isSeedAllowed();
     }
 
     // Emplois du temps (sous-collection school)
     match /schools/{schoolId}/schedule/{slotId} {
       allow read: if isSameSchool(schoolId);
       allow write: if isDirectionSameSchool(schoolId);
-      allow write: if isSeedAllowed(schoolId);
+      allow write: if isSeedAllowed();
     }
 
     // Cours (sous-collection school)
@@ -438,7 +552,7 @@ service cloud.firestore {
       allow update, delete: if isProfesseurSameSchool(schoolId)
         && resource.data.authorId == request.auth.uid;
       allow update, delete: if isDirectionSameSchool(schoolId);
-      allow write: if isSeedAllowed(schoolId);
+      allow write: if isSeedAllowed();
     }
 
     // Exercices (sous-collection school)
@@ -455,16 +569,183 @@ service cloud.firestore {
       allow update, delete: if isProfesseurSameSchool(schoolId)
         && resource.data.authorId == request.auth.uid;
       allow update, delete: if isDirectionSameSchool(schoolId);
-      allow write: if isSeedAllowed(schoolId);
+      allow write: if isSeedAllowed();
     }
 
     // Progression élèves (sous-collection school)
+    // Les scores sont écrits UNIQUEMENT via Cloud Functions (Admin SDK) pour éviter la falsification
     match /schools/{schoolId}/progress/{progressId} {
       allow read: if isSameSchool(schoolId) && (isDirection() || isProfesseur());
-      allow read, write: if isEleve()
+      // Lecture seule pour l'élève : il ne peut PAS modifier son score côté client
+      allow read: if isEleve()
         && isSameSchool(schoolId)
         && resource.data.userId == request.auth.uid;
-      allow write: if isSeedAllowed(schoolId);
+      allow write: if isSeedAllowed();
+    }
+
+    // ===========================================================
+    // MODULES MÉTIER — Discipline, Devoirs, Gamification, CRM…
+    // ===========================================================
+
+    // Discipline (sanctions / mérites)
+    match /schools/{schoolId}/discipline/{recordId} {
+      allow read: if isSameSchool(schoolId)
+        && (isDirection() || isProfesseur()
+            || (getRole() == 'parent' && resource.data.parentNotified == true));
+      allow write: if false;  // CF uniquement
+    }
+
+    // Cahier de textes numérique
+    match /schools/{schoolId}/cahierTextes/{cahierId} {
+      allow read: if isSameSchool(schoolId) && (isDirection() || isProfesseur());
+      allow create: if isProfesseur() && isSameSchool(schoolId)
+        && request.resource.data.teacherId == request.auth.uid;
+      allow update: if isProfesseur() && isSameSchool(schoolId)
+        && resource.data.teacherId == request.auth.uid
+        && resource.data.status != 'visa_ok';   // Impossible de modifier après visa
+      allow update: if isDirection() && isSameSchool(schoolId)
+        && request.resource.data.keys().hasOnly(["status","visaBy","visaAt","visaComment"]);
+    }
+
+    // Devoirs
+    match /schools/{schoolId}/devoirs/{devoirId} {
+      allow read: if isSameSchool(schoolId);
+      allow write: if isProfesseur() && isSameSchool(schoolId)
+        && request.resource.data.teacherId == request.auth.uid;
+    }
+
+    // Soumissions de devoirs (check élève)
+    match /schools/{schoolId}/devoirSubmissions/{subId} {
+      allow read: if isSameSchool(schoolId)
+        && (isProfesseur() || isDirection()
+            || (isEleve() && resource.data.studentId == request.auth.uid));
+      allow create: if isEleve() && isSameSchool(schoolId)
+        && request.resource.data.studentId == request.auth.uid;
+    }
+
+    // Gamification XP
+    match /schools/{schoolId}/studentXP/{studentId} {
+      allow read: if isSameSchool(schoolId);
+      allow write: if false;  // CF uniquement
+    }
+
+    // Badges individuels
+    match /schools/{schoolId}/studentBadges/{badgeId} {
+      allow read: if isSameSchool(schoolId)
+        && (isDirection() || isProfesseur()
+            || (isEleve() && resource.data.studentId == request.auth.uid));
+      allow write: if false;  // CF uniquement
+    }
+
+    // Demandes de remplacement
+    match /schools/{schoolId}/remplacements/{reqId} {
+      allow read: if isSameSchool(schoolId) && (isDirection() || isProfesseur());
+      allow create: if isProfesseur() && isSameSchool(schoolId)
+        && request.resource.data.requesterId == request.auth.uid;
+      allow update: if isDirection() && isSameSchool(schoolId)
+        && request.resource.data.keys().hasOnly(["status","validatedBy","validatedAt"]);
+    }
+
+    // CRM Inscriptions leads
+    match /schools/{schoolId}/inscriptionLeads/{leadId} {
+      allow read, write: if isDirectionSameSchool(schoolId);
+    }
+
+    // Logs de relances
+    match /schools/{schoolId}/relanceLogs/{logId} {
+      allow read: if isDirectionSameSchool(schoolId);
+      allow write: if false;
+    }
+
+    // Caisse physique (espèces / chèques)
+    match /schools/{schoolId}/cashPayments/{payId} {
+      allow read: if isDirectionSameSchool(schoolId);
+      allow write: if false;  // CF uniquement
+    }
+
+    // Logs de messagerie (WhatsApp / SMS)
+    match /schools/{schoolId}/messageLogs/{logId} {
+      allow read: if isDirectionSameSchool(schoolId);
+      allow write: if false;
+    }
+
+    // Annales officielles (globales ou par école)
+    match /annales/{annaleId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && getRole() == 'admin';
+    }
+
+    // Fiches pédagogiques générées par IA
+    match /schools/{schoolId}/fichesPedagogiques/{ficheId} {
+      allow read: if isSameSchool(schoolId) && (isDirection() || isProfesseur());
+      allow write: if false;  // CF uniquement
+    }
+
+    // ===========================================================
+    // MODULES COMMERCIAUX — Paie, Budget, Export, Rapports
+    // ===========================================================
+
+    // Jobs d'export (direction lit ses propres jobs)
+    match /schools/{schoolId}/exportJobs/{jobId} {
+      allow read: if isDirectionSameSchool(schoolId)
+        || (isAuthenticated() && isSameSchool(schoolId)
+            && resource.data.requestedBy == request.auth.uid);
+      allow create: if isDirectionSameSchool(schoolId);
+      allow write:  if false;  // mise à jour par CF uniquement
+    }
+
+    // Contrats enseignants (lecture prof pour son propre contrat)
+    match /schools/{schoolId}/teacherContracts/{contractId} {
+      allow read: if isDirectionSameSchool(schoolId)
+        || (isProfesseur() && isSameSchool(schoolId)
+            && resource.data.teacherId == request.auth.uid);
+      allow write: if isDirectionSameSchool(schoolId);
+    }
+
+    // Fiches de paie (lecture prof pour sa propre fiche)
+    match /schools/{schoolId}/payroll/{payrollId} {
+      allow read: if isDirectionSameSchool(schoolId)
+        || (isProfesseur() && isSameSchool(schoolId)
+            && resource.data.teacherId == request.auth.uid);
+      allow write: if false;  // CF uniquement
+    }
+
+    // Dépenses (direction uniquement)
+    match /schools/{schoolId}/expenses/{expenseId} {
+      allow read:  if isDirectionSameSchool(schoolId);
+      allow write: if false;  // CF uniquement
+    }
+
+    // Lignes budgétaires (direction)
+    match /schools/{schoolId}/budgetLines/{lineId} {
+      allow read, write: if isDirectionSameSchool(schoolId);
+    }
+
+    // Alertes budget (direction)
+    match /schools/{schoolId}/budgetAlerts/{alertId} {
+      allow read: if isDirectionSameSchool(schoolId);
+      allow update: if isDirectionSameSchool(schoolId)
+        && request.resource.data.keys().hasOnly(["acknowledged", "acknowledgedAt"]);
+      allow write: if false;
+    }
+
+    // Rapports ministériels générés
+    match /schools/{schoolId}/ministryReports/{reportId} {
+      allow read:  if isDirectionSameSchool(schoolId);
+      allow write: if false;  // CF uniquement
+    }
+
+    // ===========================================================
+    // COLLECTION : schools/{schoolId}/receipts
+    // Reçus PDF de paiement — générés par Cloud Function uniquement
+    // ===========================================================
+    match /schools/{schoolId}/receipts/{receiptId} {
+      // Un parent ne voit que ses propres reçus
+      allow read: if isAuthenticated() && isSameSchool(schoolId)
+        && (isDirection()
+            || (getRole() == 'parent' && resource.data.parentId == request.auth.uid));
+      // Écriture : Cloud Function Admin SDK uniquement
+      allow write: if false;
     }
 
     // ===========================================================

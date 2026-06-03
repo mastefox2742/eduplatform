@@ -2,7 +2,8 @@ import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen,
   ClipboardList, BarChart3, Settings, LogOut,
-  ChevronLeft, School, Bell, FileText, Clock, Calendar, Award, Trophy
+  ChevronLeft, School, Bell, FileText, Clock, Calendar, Award, Trophy,
+  Download, Wallet, DollarSign
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth.store'
@@ -31,8 +32,10 @@ const DIRECTION_NAV = [
   { to: '/direction/schedule',     label: 'Emplois du temps',icon: Calendar        },
   { to: '/direction/exams',        label: 'Inscriptions examens', icon: Award      },
   { to: '/direction/exam-results', label: 'Résultats examens',    icon: Trophy     },
-  { to: '/direction/reports',      label: 'Rapports',        icon: BarChart3       },
-  { to: '/direction/settings',     label: 'Paramètres',      icon: Settings        },
+  { to: '/direction/budget',        label: 'Trésorerie',       icon: Wallet          },
+  { to: '/direction/exports',       label: 'Exports & Rapports', icon: Download     },
+  { to: '/direction/reports',       label: 'Analyses',         icon: BarChart3      },
+  { to: '/direction/settings',      label: 'Paramètres',       icon: Settings       },
 ]
 
 const TEACHER_NAV = [

@@ -281,7 +281,7 @@ async function verifyNotificationPermission(
   recipientClasseId?: string
 ): Promise<void> {
   // Les élèves ne peuvent pas envoyer de notifications
-  if (claims.role === "eleve") {
+  if (claims.role === "student") {
     throw new functions.https.HttpsError(
       "permission-denied",
       "Students cannot send notifications"
@@ -289,7 +289,7 @@ async function verifyNotificationPermission(
   }
 
   // Les professeurs ne peuvent notifier que leurs classes
-  if (claims.role === "professeur") {
+  if (claims.role === "teacher") {
     if (type === "system") {
       throw new functions.https.HttpsError(
         "permission-denied",

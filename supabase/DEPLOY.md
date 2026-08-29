@@ -1,123 +1,146 @@
-# Déploiement Supabase — EduSchool
+# Déploiement Supabase — Projetto1
 
-## 1. Créer le projet
+## 1. Lier le projet
 
 ```bash
-# Installer la CLI Supabase
 npm install -g supabase
-
-# Login
 supabase login
-
-# Créer un nouveau projet sur supabase.com
-# Puis lier le repo local
-supabase init
-supabase link --project-ref YOUR_PROJECT_REF
+supabase link --project-ref VOTRE_PROJECT_REF
 ```
 
-## 2. Appliquer les migrations
+## 2. Valider en local AVANT de toucher la production
+
+`db reset` rejoue `001` → `014` sur une base vide. C'est le seul moyen de
+vérifier l'ordre des migrations et de repérer une dépendance manquante.
 
 ```bash
-# Appliquer toutes les migrations dans l'ordre
-supabase db push
-
-# Ou en développement local
 supabase start
 supabase db reset
 ```
 
-## 3. Configurer les Storage buckets
+Puis les tests des critères d'acceptation :
 
 ```bash
-# Dans le dashboard Supabase → Storage → New Bucket :
-# - user-media    (public: false, 5MB max)
-# - school-assets (public: true,  10MB max)
-# - exports       (public: false, 50MB max)
-# - receipts      (public: false, 10MB max)
+psql "postgresql://postgres:postgres@localhost:54322/postgres" -f supabase/tests/acceptance_26.sql
 ```
 
-## 4. Configurer les Secrets (Edge Functions)
+Le script doit finir sur `TOUS LES TESTS SONT PASSES`. Toute autre sortie
+signale une régression de sécurité : ne pas déployer.
+
+## 3. Appliquer en production
+
+```bash
+supabase db push
+```
+
+## 4. Migrations
+
+| Fichier | Objet |
+|---|---|
+| `001_initial_schema.sql` | Socle : écoles, profils, classes, bulletins, présences, paiements |
+| `002_rls_policies.sql` | RLS du socle + fonctions `auth_role()`, `auth_school_id()` |
+| `003_helpers.sql` | Utilitaires, rate limiting IA, numéros de reçu |
+| `004_roles_sites_permissions.sql` | Rôles cumulables, sites, RBAC granulaire |
+| `005_student_file_guardians.sql` | Tuteurs, santé, documents, consentements, parcours |
+| `006_admissions_academic.sql` | Candidatures, années/périodes, barèmes, programmes |
+| `007_assessments_grades_exams.sql` | Évaluations, notes, bulletins, workflows, examens |
+| `008_finance.sql` | Tarifs, factures, échéanciers, caisse, webhooks |
+| `009_vie_scolaire.sql` | Justificatifs, sorties, incidents, cahier de texte |
+| `010_modules_optionnels.sql` | Bibliothèque, transport, infirmerie, stocks, RH, cantine |
+| `011_communication_ia_saas.sql` | Campagnes, journal IA, console SaaS, RGPD, sync |
+| `012_rls_nouvelles_tables.sql` | RLS des 103 tables ajoutées |
+| `013_storage_buckets.sql` | Buckets et policies fichiers |
+| `014_document_requests.sql` | Demandes de documents officiels, modèles, vue `validation_queue` |
+
+Les migrations sont **additives**. Les colonnes remplacées
+(`profiles.children`, `profiles.role`) restent en place tant que le code
+applicatif n'a pas basculé.
+
+## 5. Storage
+
+Les buckets sont créés par `013`. Aucune action manuelle dans le dashboard.
+
+| Bucket | Public | Taille | Contenu |
+|---|---|---|---|
+| `school-assets` | oui | 10 Mo | logos, en-têtes, cachets |
+| `user-media` | non | 5 Mo | photos de profil |
+| `student-docs` | non | 10 Mo | pièces du dossier élève |
+| `admissions` | non | 10 Mo | pièces de candidature |
+| `receipts` | non | 10 Mo | reçus PDF |
+| `bulletins` | non | 10 Mo | bulletins signés |
+| `exports` | non | 50 Mo | XLSX / CSV / PDF générés |
+| `courses` | non | 50 Mo | supports pédagogiques |
+| `homework` | non | 20 Mo | copies rendues |
+| `health` | non | 10 Mo | justificatifs médicaux |
+
+**Convention de chemin obligatoire** : `<school_id>/<entité_id>/<fichier>`.
+Le premier segment porte le tenant — c'est lui que les policies vérifient.
+Un fichier déposé hors de cette convention sera rejeté ou invisible.
+
+Les URL sont signées à durée courte, jamais publiques (sauf `school-assets`).
+
+## 6. Secrets
 
 ```bash
 # IA
-supabase secrets set GEMINI_API_KEY=AIza...
+supabase secrets set GEMINI_API_KEY=...
 
-# WhatsApp / Twilio
-supabase secrets set TWILIO_ACCOUNT_SID=AC...
+# WhatsApp / SMS
+supabase secrets set TWILIO_ACCOUNT_SID=...
 supabase secrets set TWILIO_AUTH_TOKEN=...
-supabase secrets set TWILIO_WHATSAPP_NUMBER=whatsapp:+14155238886
+supabase secrets set TWILIO_WHATSAPP_NUMBER=whatsapp:+...
+supabase secrets set AFRICASTALKING_API_KEY=...
 
-# SMS — Africa's Talking
-supabase secrets set AT_API_KEY=...
-supabase secrets set AT_USERNAME=eduschool
-
-# Supabase internal (auto-fourni dans Edge Functions)
-# SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
-# → disponibles automatiquement dans Deno.env
+# Paiement
+supabase secrets set CINETPAY_API_KEY=...
+supabase secrets set CINETPAY_SITE_ID=...
+supabase secrets set CINETPAY_SECRET_KEY=...
 ```
 
-## 5. Déployer les Edge Functions
+Aucune clé ne doit apparaître dans une URL, dans un log, ni dans le client
+(§21.4). Le webhook de paiement vérifie la signature avant tout traitement.
+
+## 7. Edge Functions
 
 ```bash
 supabase functions deploy ai-proxy
-supabase functions deploy generate-receipt
-supabase functions deploy send-alert
-supabase functions deploy payroll
+supabase functions deploy payment-init
+supabase functions deploy payment-webhook --no-verify-jwt
 ```
 
-## 6. Configurer les variables mobiles
+`--no-verify-jwt` n'est requis que pour le webhook : l'appelant est
+l'opérateur de paiement, pas un utilisateur connecté. Son
+authentification repose sur une signature HMAC vérifiée dans la
+fonction (§22). Déclarer l'inverse ouvrirait la porte à n'importe qui.
 
-Dans `apps/mobile/.env.local` :
-```
-EXPO_PUBLIC_SUPABASE_URL=https://YOUR_REF.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJ...
-```
+Puis renseigner l'URL de notification chez CinetPay :
 
-Dans `apps/web/.env.local` :
 ```
-VITE_SUPABASE_URL=https://YOUR_REF.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...
+https://<PROJECT_REF>.supabase.co/functions/v1/payment-webhook
 ```
 
-## 7. Configurer l'Auth
+## 8. Après le premier déploiement
 
-Dans le dashboard Supabase → Authentication → Settings :
-- Site URL: `https://your-web-app.com`
-- Redirect URLs: `exp://localhost:8081, https://your-web-app.com`
-- JWT Expiry: 3600s
-- Email templates: personnaliser en français
-
-## 8. Activer le Realtime
-
-Dans Supabase Dashboard → Database → Replication :
-Activer Realtime sur les tables :
-- bulletins
-- announcements
-- messages
-- attendance_sessions
-- discipline_records
-- export_jobs
-
-## 9. Vérifier les RLS
+1. Créer le premier `super_admin` :
 
 ```sql
--- Test en console SQL
-SET LOCAL "request.jwt.claims" = '{"role":"student","school_id":"xxx"}';
-SELECT * FROM bulletins LIMIT 5;
--- Doit retourner seulement les bulletins publiés de l'élève
+INSERT INTO user_roles (school_id, user_id, role, scope_kind)
+VALUES ('<school_id>', '<user_id>', 'super_admin', 'school');
 ```
 
-## Différences clés Firebase → Supabase
+2. Vérifier que RLS est bien actif partout — aucune ligne ne doit sortir :
 
-| Concept Firebase | Équivalent Supabase |
-|-----------------|---------------------|
-| `onSnapshot()`  | `channel().on('postgres_changes').subscribe()` |
-| `setDoc({merge:true})` | `upsert({onConflict:'...'})` |
-| `arrayUnion(x)` | `append_to_array_if_not_exists()` RPC |
-| `serverTimestamp()` | `DEFAULT NOW()` en PostgreSQL |
-| `FieldValue.increment(n)` | `UPDATE SET col = col + n` |
-| Batch writes | Transaction PostgreSQL |
-| Collection group query | JOIN ou vue SQL |
-| Custom Claims | `user.user_metadata.role` + colonne `profiles.role` |
-| Security Rules | Row Level Security (RLS) |
-| Cloud Functions | Edge Functions (Deno) + Database Functions |
+```sql
+SELECT tablename FROM pg_tables
+WHERE schemaname = 'public'
+  AND tablename NOT IN (SELECT tablename FROM pg_tables t
+                        JOIN pg_class c ON c.relname = t.tablename
+                        WHERE c.relrowsecurity)
+ORDER BY 1;
+```
+
+3. Générer les types TypeScript :
+
+```bash
+supabase gen types typescript --linked > packages/shared-types/src/database.ts
+```

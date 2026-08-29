@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EleveDashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://code.iconify.design/iconify-icon/3.0.0/iconify-icon.min.js"></script>
+    <style type="text/tailwindcss">
+      @theme inline {
+        --color-background: var(--background);
+        --color-foreground: var(--foreground);
+        --color-primary: var(--primary);
+        --color-primary-foreground: var(--primary-foreground);
+        --color-secondary: var(--secondary);
+        --color-secondary-foreground: var(--secondary-foreground);
+        --color-muted: var(--muted);
+        --color-muted-foreground: var(--muted-foreground);
+        --color-accent: var(--accent);
+        --color-accent-foreground: var(--accent-foreground);
+        --color-destructive: var(--destructive);
+        --color-card: var(--card);
+        --color-card-foreground: var(--card-foreground);
+        --color-popover: var(--popover);
+        --color-popover-foreground: var(--popover-foreground);
+        --color-border: var(--border);
+        --color-input: var(--input);
+        --color-ring: var(--ring);
+        --color-chart-1: var(--chart-1);
+        --color-chart-2: var(--chart-2);
+        --color-chart-3: var(--chart-3);
+        --color-chart-4: var(--chart-4);
+        --color-chart-5: var(--chart-5);
+
+        --font-font-sans: var(--font-sans);
+        --font-font-heading: var(--font-heading);
+        --font-font-serif: var(--font-serif);
+        --font-font-mono: var(--font-mono);
+      }
+
+      @theme {
+        --radius-xs: calc(var(--radius) - 8px);
+        --radius-sm: calc(var(--radius) - 4px);
+        --radius-md: calc(var(--radius) - 2px);
+        --radius-lg: var(--radius);
+        --radius-xl: calc(var(--radius) + 4px);
+        --radius-2xl: calc(var(--radius) + 8px);
+        --radius-3xl: calc(var(--radius) + 16px);
+        --radius-4xl: calc(var(--radius) + 24px);
+      }
+
+      * {
+        corner-shape: var(--shape, round);
+      }
+
+      .rounded-full, .rounded-none,
+      .rounded-t-full, .rounded-t-none,
+      .rounded-r-full, .rounded-r-none,
+      .rounded-b-full, .rounded-b-none,
+      .rounded-l-full, .rounded-l-none,
+      .rounded-s-full, .rounded-s-none,
+      .rounded-e-full, .rounded-e-none,
+      .rounded-tl-full, .rounded-tl-none,
+      .rounded-tr-full, .rounded-tr-none,
+      .rounded-bl-full, .rounded-bl-none,
+      .rounded-br-full, .rounded-br-none,
+      .rounded-ss-full, .rounded-ss-none,
+      .rounded-se-full, .rounded-se-none,
+      .rounded-es-full, .rounded-es-none,
+      .rounded-ee-full, .rounded-ee-none {
+        corner-shape: round;
+      }
+
+      @utility rounded-* {
+        border-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-t-* {
+        border-top-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-top-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-r-* {
+        border-top-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-bottom-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-b-* {
+        border-bottom-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-bottom-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-l-* {
+        border-top-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-bottom-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-tl-* {
+        border-top-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-tr-* {
+        border-top-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-bl-* {
+        border-bottom-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-br-* {
+        border-bottom-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-s-* {
+        border-start-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-end-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-e-* {
+        border-start-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-end-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-ss-* {
+        border-start-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-se-* {
+        border-start-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-es-* {
+        border-end-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-ee-* {
+        border-end-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+
+      :root {
+        --shape: squircle;
+        --shape-multiplier: 1;
+
+          --background: #F6F8FB;
+        --foreground: #14213D;
+        --primary: #145DA0;
+        --primary-foreground: #FFFFFF;
+        --secondary: #0F766E;
+        --secondary-foreground: #FFFFFF;
+        --muted: #E8EEF5;
+        --muted-foreground: #5E7188;
+        --accent: #F4A62A;
+        --accent-foreground: #3B2605;
+        --destructive: #C2413B;
+        --card: #FFFFFF;
+        --card-foreground: #14213D;
+        --popover: #FFFFFF;
+        --popover-foreground: #14213D;
+        --border: #D8E1EB;
+        --input: #F1F5F9;
+        --ring: #2D8CBE;
+        --chart-1: #145DA0;
+        --chart-2: #0F766E;
+        --chart-3: #F4A62A;
+        --chart-4: #7C5CFC;
+        --chart-5: #D85A8A;
+
+        --font-sans: "Inter";
+        --font-heading: "Manrope";
+        --font-serif: "Playfair Display";
+        --font-mono: "JetBrains Mono";
+
+        --radius: 0.75rem;
+      }
+
+      @supports (corner-shape: squircle) {
+        :root {
+          --shape-multiplier: 2.5;
+        }
+      }
+
+      /* Prevent layout shift for icons without explicit dimensions */
+      iconify-icon:not([width]):not([height]) {
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+      }
+
+      /* Hide scrollbars */
+      *,
+      *::before,
+      *::after {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      *::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="min-h-screen bg-background text-foreground font-sans pb-28">
+      <header class="px-5 pt-6 pb-4 bg-card border-b border-border sticky top-0 z-20">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="relative">
+              <img
+                src="https://randomuser.me/api/portraits/men/32.jpg"
+                alt="Destin Moukoko"
+                class="size-11 rounded-full object-cover border-2 border-primary"
+              /><span
+                class="absolute -bottom-1 -right-1 bg-accent text-accent-foreground text-[10px] font-black px-1.5 py-0.2 rounded-full shadow-sm"
+                >Niv. 4</span
+              >
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <h1 class="font-heading font-bold text-base leading-tight">Salut, Destin ! 👋</h1>
+              </div>
+              <p class="text-xs text-muted-foreground">3ème A · Lycée La Référence</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 font-heading font-bold text-xs"
+            >
+              <iconify-icon icon="solar:fire-bold" class="text-amber-500 text-sm"></iconify-icon
+              ><span>420 XP</span>
+            </div>
+            <button
+              aria-label="Notifications"
+              class="size-10 rounded-full bg-muted/60 flex items-center justify-center"
+            >
+              <iconify-icon icon="solar:bell-bing-outline" width="19" height="19"></iconify-icon>
+            </button>
+          </div>
+        </div>
+        <div
+          class="mt-3.5 flex items-center justify-between bg-primary/5 border border-primary/15 rounded-xl px-3 py-2 text-xs"
+        >
+          <div class="flex items-center gap-2">
+            <span class="size-2 rounded-full bg-emerald-500 animate-pulse"></span
+            ><span class="font-medium text-foreground"
+              >Mode hors ligne activé · Cours enregistrés</span
+            >
+          </div>
+          <span class="text-[11px] font-semibold text-primary">Série de 5 jours 🔥</span>
+        </div>
+      </header>
+      <main class="px-5 py-4 space-y-4">
+        <section>
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h2 class="font-heading font-bold text-sm text-foreground">Planning du jour</h2>
+              <p class="text-[11px] text-muted-foreground">Mardi 14 Mai · 4 cours restants</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold"
+              >Salle 12</span
+            >
+          </div>
+          <div class="flex gap-2.5 overflow-x-auto pb-1 no-scrollbar">
+            <div
+              class="min-w-[170px] bg-primary text-primary-foreground rounded-2xl p-3.5 shadow-sm shrink-0 border border-primary"
+            >
+              <div class="flex items-center justify-between text-[11px] opacity-90">
+                <span>08:00 - 10:00</span
+                ><span
+                  class="bg-primary-foreground/20 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase"
+                  >En cours</span
+                >
+              </div>
+              <p class="font-heading font-bold text-base mt-2 leading-snug">Mathématiques</p>
+              <p class="text-xs opacity-85 mt-0.5">M. Okemba · Salle 12</p>
+              <div
+                class="mt-3 pt-2 border-t border-primary-foreground/20 flex items-center justify-between text-[11px]"
+              >
+                <span>Cahier p. 84</span
+                ><iconify-icon
+                  icon="solar:book-bookmark-outline"
+                  width="16"
+                  height="16"
+                ></iconify-icon>
+              </div>
+            </div>
+            <div
+              class="min-w-[170px] bg-card text-foreground rounded-2xl p-3.5 border border-border shadow-sm shrink-0"
+            >
+              <div class="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>10:15 - 12:00</span
+                ><span class="bg-muted px-1.5 py-0.5 rounded text-[10px] font-medium">Bientôt</span>
+              </div>
+              <p class="font-heading font-bold text-base mt-2 leading-snug">Physique-Chimie</p>
+              <p class="text-xs text-muted-foreground mt-0.5">M. Ndoudi · Labo 2</p>
+              <div
+                class="mt-3 pt-2 border-t border-border flex items-center justify-between text-[11px] text-secondary font-medium"
+              >
+                <span>TP Pratique</span
+                ><iconify-icon
+                  icon="solar:test-tube-minimalistic-outline"
+                  width="16"
+                  height="16"
+                ></iconify-icon>
+              </div>
+            </div>
+            <div
+              class="min-w-[170px] bg-card text-foreground rounded-2xl p-3.5 border border-border shadow-sm shrink-0"
+            >
+              <div class="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>13:30 - 15:30</span><span>Après-midi</span>
+              </div>
+              <p class="font-heading font-bold text-base mt-2 leading-snug">Histoire-Géo</p>
+              <p class="text-xs text-muted-foreground mt-0.5">Mme Ngoma · Salle 12</p>
+              <div
+                class="mt-3 pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground"
+              >
+                <span>Le Congo colonial</span
+                ><iconify-icon icon="solar:globe-outline" width="16" height="16"></iconify-icon>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section>
+          <div class="flex items-center justify-between mb-2.5">
+            <h2 class="font-heading font-bold text-sm text-foreground">Devoirs à rendre</h2>
+            <span class="text-xs font-semibold text-destructive">2 urgents</span>
+          </div>
+          <div class="space-y-2.5">
+            <div class="bg-card border border-border rounded-2xl p-4 shadow-sm">
+              <div class="flex items-start justify-between">
+                <div class="flex items-center gap-2.5">
+                  <span
+                    class="size-8 rounded-xl bg-blue-50 text-primary flex items-center justify-center font-bold text-xs"
+                    >MATH</span
+                  >
+                  <div>
+                    <h3 class="font-heading font-bold text-sm text-foreground">
+                      Exercices 4 &amp; 5 p. 92
+                    </h3>
+                    <p class="text-xs text-muted-foreground">M. Okemba · Pour demain 08:00</p>
+                  </div>
+                </div>
+                <span
+                  class="px-2.5 py-1 rounded-full bg-red-100 text-destructive text-[10px] font-bold"
+                  >Demain</span
+                >
+              </div>
+              <p class="text-xs text-muted-foreground mt-2 bg-muted/40 p-2.5 rounded-xl">
+                Résolution des équations à deux inconnues avec vérification géométrique.
+              </p>
+              <div class="mt-3 flex items-center justify-between">
+                <button class="text-xs font-semibold text-secondary flex items-center gap-1">
+                  <iconify-icon icon="solar:camera-outline" width="16" height="16"></iconify-icon
+                  >Prendre photo du cahier</button
+                ><button
+                  class="px-3.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-sm flex items-center gap-1.5"
+                >
+                  <iconify-icon
+                    icon="solar:upload-track-outline"
+                    width="14"
+                    height="14"
+                  ></iconify-icon
+                  >Déposer devoir
+                </button>
+              </div>
+            </div>
+            <div class="bg-card border border-border rounded-2xl p-4 shadow-sm">
+              <div class="flex items-start justify-between">
+                <div class="flex items-center gap-2.5">
+                  <span
+                    class="size-8 rounded-xl bg-teal-50 text-secondary flex items-center justify-center font-bold text-xs"
+                    >FR</span
+                  >
+                  <div>
+                    <h3 class="font-heading font-bold text-sm text-foreground">
+                      Lecture : Une vie de boy (Oyono)
+                    </h3>
+                    <p class="text-xs text-muted-foreground">Mme Mabiala · Chapitres 1 à 3</p>
+                  </div>
+                </div>
+                <span
+                  class="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold"
+                  >Jeudi</span
+                >
+              </div>
+              <div class="mt-3 flex items-center justify-between pt-2 border-t border-border">
+                <span class="text-xs text-emerald-600 font-semibold flex items-center gap-1"
+                  ><iconify-icon
+                    icon="solar:check-circle-bold"
+                    width="14"
+                    height="14"
+                  ></iconify-icon
+                  >PDF téléchargé hors-ligne</span
+                ><button class="px-3 py-1 rounded-lg bg-muted text-foreground text-xs font-medium">
+                  Lire la fiche
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section
+          class="rounded-2xl bg-gradient-to-br from-indigo-900 to-primary text-white p-4 relative overflow-hidden shadow-sm"
+        >
+          <div class="flex items-start justify-between relative z-10">
+            <div class="flex items-center gap-2.5">
+              <span
+                class="size-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-amber-300"
+                ><iconify-icon icon="solar:magic-stick-3-bold" width="20" height="20"></iconify-icon
+              ></span>
+              <div>
+                <h3 class="font-heading font-bold text-sm">Tuteur IA Projetto1</h3>
+                <p class="text-[11px] text-white/80">Besoin d'aide pour réviser un cours ?</p>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded bg-white/20 text-[10px] font-bold">Gratuit</span>
+          </div>
+          <p class="text-xs text-white/90 mt-2.5 relative z-10">
+            « Pose-moi une question sur le théorème de Pythagore ou demande un quiz d’entraînement
+            de 5 min ! »
+          </p>
+          <div class="mt-3 flex gap-2 relative z-10">
+            <button
+              class="flex-1 py-1.5 px-3 rounded-xl bg-white text-primary font-heading font-bold text-xs shadow hover:bg-slate-100 flex items-center justify-center gap-1.5"
+            >
+              <iconify-icon icon="solar:chat-line-bold" width="14" height="14"></iconify-icon>Poser
+              une question</button
+            ><button
+              class="py-1.5 px-3 rounded-xl bg-white/20 border border-white/30 text-white font-semibold text-xs flex items-center justify-center gap-1"
+            >
+              <iconify-icon icon="solar:play-circle-outline" width="14" height="14"></iconify-icon
+              >Quiz Flash
+            </button>
+          </div>
+        </section>
+        <section>
+          <div class="flex items-center justify-between mb-2.5">
+            <h2 class="font-heading font-bold text-sm text-foreground">
+              Mes Récompenses &amp; Badges
+            </h2>
+            <button class="text-xs text-primary font-semibold">Palmarès</button>
+          </div>
+          <div class="grid grid-cols-3 gap-2.5">
+            <div class="bg-card border border-border rounded-2xl p-3 text-center">
+              <div
+                class="size-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto text-xl"
+              >
+                🏆
+              </div>
+              <p class="font-heading font-bold text-xs mt-2 text-foreground">Top 5 Classe</p>
+              <p class="text-[10px] text-muted-foreground mt-0.5">Trimestre 2</p>
+            </div>
+            <div class="bg-card border border-border rounded-2xl p-3 text-center">
+              <div
+                class="size-10 rounded-full bg-blue-100 text-primary flex items-center justify-center mx-auto text-xl"
+              >
+                ⚡
+              </div>
+              <p class="font-heading font-bold text-xs mt-2 text-foreground">Sans Faute</p>
+              <p class="text-[10px] text-muted-foreground mt-0.5">100% Devoirs</p>
+            </div>
+            <div class="bg-card border border-border rounded-2xl p-3 text-center opacity-60">
+              <div
+                class="size-10 rounded-full bg-muted text-muted-foreground flex items-center justify-center mx-auto text-xl"
+              >
+                ⭐
+              </div>
+              <p class="font-heading font-bold text-xs mt-2 text-foreground">Génie Maths</p>
+              <p class="text-[10px] text-muted-foreground mt-0.5">À débloquer (18+)</p>
+            </div>
+          </div>
+        </section>
+      </main>
+      <nav
+        class="fixed bottom-0 inset-x-0 bg-card/95 backdrop-blur border-t border-border px-3 pt-3 pb-5 flex justify-around z-20"
+        aria-label="Navigation élève"
+      >
+        <button class="flex-1 flex flex-col items-center gap-1 text-primary">
+          <iconify-icon icon="solar:home-smile-bold" width="20" height="20"></iconify-icon
+          ><span class="text-[11px] font-bold">Accueil</span></button
+        ><button class="flex-1 flex flex-col items-center gap-1 text-muted-foreground">
+          <iconify-icon icon="solar:book-2-outline" width="20" height="20"></iconify-icon
+          ><span class="text-[11px]">Mes Cours</span></button
+        ><button class="flex-1 flex flex-col items-center gap-1 text-muted-foreground relative">
+          <iconify-icon icon="solar:document-add-outline" width="20" height="20"></iconify-icon
+          ><span class="text-[11px]">Devoirs</span
+          ><span class="absolute top-0 right-5 size-2 rounded-full bg-destructive"></span></button
+        ><button class="flex-1 flex flex-col items-center gap-1 text-muted-foreground">
+          <iconify-icon icon="solar:chart-square-outline" width="20" height="20"></iconify-icon
+          ><span class="text-[11px]">Notes</span></button
+        ><button class="flex-1 flex flex-col items-center gap-1 text-muted-foreground">
+          <iconify-icon icon="solar:user-circle-outline" width="20" height="20"></iconify-icon
+          ><span class="text-[11px]">Profil</span>
+        </button>
+      </nav>
+    </div>
+  </body>
+</html>

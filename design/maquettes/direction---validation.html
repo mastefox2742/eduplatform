@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DirectionValidation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://code.iconify.design/iconify-icon/3.0.0/iconify-icon.min.js"></script>
+    <style type="text/tailwindcss">
+      @theme inline {
+        --color-background: var(--background);
+        --color-foreground: var(--foreground);
+        --color-primary: var(--primary);
+        --color-primary-foreground: var(--primary-foreground);
+        --color-secondary: var(--secondary);
+        --color-secondary-foreground: var(--secondary-foreground);
+        --color-muted: var(--muted);
+        --color-muted-foreground: var(--muted-foreground);
+        --color-accent: var(--accent);
+        --color-accent-foreground: var(--accent-foreground);
+        --color-destructive: var(--destructive);
+        --color-card: var(--card);
+        --color-card-foreground: var(--card-foreground);
+        --color-popover: var(--popover);
+        --color-popover-foreground: var(--popover-foreground);
+        --color-border: var(--border);
+        --color-input: var(--input);
+        --color-ring: var(--ring);
+        --color-chart-1: var(--chart-1);
+        --color-chart-2: var(--chart-2);
+        --color-chart-3: var(--chart-3);
+        --color-chart-4: var(--chart-4);
+        --color-chart-5: var(--chart-5);
+
+        --font-font-sans: var(--font-sans);
+        --font-font-heading: var(--font-heading);
+        --font-font-serif: var(--font-serif);
+        --font-font-mono: var(--font-mono);
+      }
+
+      @theme {
+        --radius-xs: calc(var(--radius) - 8px);
+        --radius-sm: calc(var(--radius) - 4px);
+        --radius-md: calc(var(--radius) - 2px);
+        --radius-lg: var(--radius);
+        --radius-xl: calc(var(--radius) + 4px);
+        --radius-2xl: calc(var(--radius) + 8px);
+        --radius-3xl: calc(var(--radius) + 16px);
+        --radius-4xl: calc(var(--radius) + 24px);
+      }
+
+      * {
+        corner-shape: var(--shape, round);
+      }
+
+      .rounded-full, .rounded-none,
+      .rounded-t-full, .rounded-t-none,
+      .rounded-r-full, .rounded-r-none,
+      .rounded-b-full, .rounded-b-none,
+      .rounded-l-full, .rounded-l-none,
+      .rounded-s-full, .rounded-s-none,
+      .rounded-e-full, .rounded-e-none,
+      .rounded-tl-full, .rounded-tl-none,
+      .rounded-tr-full, .rounded-tr-none,
+      .rounded-bl-full, .rounded-bl-none,
+      .rounded-br-full, .rounded-br-none,
+      .rounded-ss-full, .rounded-ss-none,
+      .rounded-se-full, .rounded-se-none,
+      .rounded-es-full, .rounded-es-none,
+      .rounded-ee-full, .rounded-ee-none {
+        corner-shape: round;
+      }
+
+      @utility rounded-* {
+        border-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-t-* {
+        border-top-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-top-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-r-* {
+        border-top-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-bottom-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-b-* {
+        border-bottom-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-bottom-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-l-* {
+        border-top-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-bottom-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-tl-* {
+        border-top-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-tr-* {
+        border-top-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-bl-* {
+        border-bottom-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-br-* {
+        border-bottom-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-s-* {
+        border-start-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-end-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-e-* {
+        border-start-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-end-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-ss-* {
+        border-start-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-se-* {
+        border-start-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-es-* {
+        border-end-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-ee-* {
+        border-end-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+
+      :root {
+        --shape: squircle;
+        --shape-multiplier: 1;
+
+          --background: #F6F8FB;
+        --foreground: #14213D;
+        --primary: #145DA0;
+        --primary-foreground: #FFFFFF;
+        --secondary: #0F766E;
+        --secondary-foreground: #FFFFFF;
+        --muted: #E8EEF5;
+        --muted-foreground: #5E7188;
+        --accent: #F4A62A;
+        --accent-foreground: #3B2605;
+        --destructive: #C2413B;
+        --card: #FFFFFF;
+        --card-foreground: #14213D;
+        --popover: #FFFFFF;
+        --popover-foreground: #14213D;
+        --border: #D8E1EB;
+        --input: #F1F5F9;
+        --ring: #2D8CBE;
+        --chart-1: #145DA0;
+        --chart-2: #0F766E;
+        --chart-3: #F4A62A;
+        --chart-4: #7C5CFC;
+        --chart-5: #D85A8A;
+
+        --font-sans: "Inter";
+        --font-heading: "Manrope";
+        --font-serif: "Playfair Display";
+        --font-mono: "JetBrains Mono";
+
+        --radius: 0.75rem;
+      }
+
+      @supports (corner-shape: squircle) {
+        :root {
+          --shape-multiplier: 2.5;
+        }
+      }
+
+      /* Prevent layout shift for icons without explicit dimensions */
+      iconify-icon:not([width]):not([height]) {
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+      }
+
+      /* Hide scrollbars */
+      *,
+      *::before,
+      *::after {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      *::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="min-h-screen bg-background text-foreground font-sans pb-28">
+      <header class="px-5 pt-6 pb-4 bg-card border-b border-border sticky top-0 z-10">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <button
+              aria-label="Retour"
+              class="size-9 rounded-full bg-muted flex items-center justify-center"
+            >
+              <iconify-icon icon="solar:arrow-left-outline" width="20" height="20"></iconify-icon>
+            </button>
+            <h1 class="font-heading text-xl font-bold">Validations en attente</h1>
+          </div>
+          <span class="text-xs bg-primary/10 text-primary font-bold px-2.5 py-1 rounded-full"
+            >31 items</span
+          >
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button
+            class="px-4 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold"
+          >
+            Bulletins (24)</button
+          ><button
+            class="px-4 py-1.5 rounded-full bg-muted text-muted-foreground text-xs font-medium"
+          >
+            Documents (7)
+          </button>
+        </div>
+      </header>
+      <main class="px-5 py-4 space-y-4">
+        <div
+          class="p-3 bg-teal-50 border border-teal-200 rounded-xl flex items-center justify-between text-secondary"
+        >
+          <div class="flex items-center gap-2">
+            <iconify-icon icon="solar:shield-check-outline" width="20" height="20"></iconify-icon
+            ><span class="text-xs font-medium">Mode signature électronique actif</span>
+          </div>
+          <button class="text-xs font-bold underline">Valider tout</button>
+        </div>
+        <div class="space-y-3">
+          <div class="bg-card border border-border rounded-2xl p-4 shadow-sm">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <img
+                  src="https://randomuser.me/api/portraits/men/32.jpg"
+                  alt="Photo élève"
+                  class="size-11 rounded-full object-cover"
+                />
+                <div>
+                  <h2 class="font-heading font-semibold text-sm">Destin Moukoko</h2>
+                  <p class="text-xs text-muted-foreground">Classe de 3ème A · Trimestre 2</p>
+                </div>
+              </div>
+              <span class="text-xs font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-800"
+                >14.8/20</span
+              >
+            </div>
+            <div class="mt-3 text-xs bg-background p-2.5 rounded-lg text-muted-foreground">
+              <span class="font-semibold text-foreground">Avis Conseil :</span> Tableau d’honneur
+              avec félicitations du corps professoral.
+            </div>
+            <div class="mt-4 flex gap-2">
+              <button
+                class="flex-1 py-2 rounded-xl bg-muted text-destructive text-xs font-semibold flex items-center justify-center gap-1"
+              >
+                <iconify-icon
+                  icon="solar:close-circle-outline"
+                  width="16"
+                  height="16"
+                ></iconify-icon
+                >Rejeter</button
+              ><button
+                class="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1"
+              >
+                <iconify-icon icon="solar:check-read-outline" width="16" height="16"></iconify-icon
+                >Signer &amp; Valider
+              </button>
+            </div>
+          </div>
+          <div class="bg-card border border-border rounded-2xl p-4 shadow-sm">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <img
+                  src="https://randomuser.me/api/portraits/women/44.jpg"
+                  alt="Photo élève"
+                  class="size-11 rounded-full object-cover"
+                />
+                <div>
+                  <h2 class="font-heading font-semibold text-sm">Grace Mampouya</h2>
+                  <p class="text-xs text-muted-foreground">Classe de Terminale D · Trimestre 2</p>
+                </div>
+              </div>
+              <span class="text-xs font-bold px-2 py-0.5 rounded bg-teal-100 text-teal-800"
+                >16.4/20</span
+              >
+            </div>
+            <div class="mt-3 text-xs bg-background p-2.5 rounded-lg text-muted-foreground">
+              <span class="font-semibold text-foreground">Avis Conseil :</span> Excellent trimestre,
+              profil très prometteur pour le Bac.
+            </div>
+            <div class="mt-4 flex gap-2">
+              <button
+                class="flex-1 py-2 rounded-xl bg-muted text-destructive text-xs font-semibold flex items-center justify-center gap-1"
+              >
+                <iconify-icon
+                  icon="solar:close-circle-outline"
+                  width="16"
+                  height="16"
+                ></iconify-icon
+                >Rejeter</button
+              ><button
+                class="flex-1 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold flex items-center justify-center gap-1"
+              >
+                <iconify-icon icon="solar:check-read-outline" width="16" height="16"></iconify-icon
+                >Signer &amp; Valider
+              </button>
+            </div>
+          </div>
+          <div class="bg-card border border-border rounded-2xl p-4 shadow-sm">
+            <div class="flex items-start justify-between">
+              <div class="flex items-center gap-3">
+                <div
+                  class="size-11 rounded-full bg-blue-50 text-primary flex items-center justify-center"
+                >
+                  <iconify-icon
+                    icon="solar:document-text-outline"
+                    width="24"
+                    height="24"
+                  ></iconify-icon>
+                </div>
+                <div>
+                  <h2 class="font-heading font-semibold text-sm">Certificat de Scolarité</h2>
+                  <p class="text-xs text-muted-foreground">Junior Bantsimba · 6ème B</p>
+                </div>
+              </div>
+              <span class="text-xs font-medium px-2 py-0.5 rounded bg-blue-50 text-primary"
+                >Secrétariat</span
+              >
+            </div>
+            <p class="mt-2 text-xs text-muted-foreground">
+              Demandé par Parent le 13/05/2024 · Motif: Visa Ambassade
+            </p>
+            <div class="mt-4 flex gap-2">
+              <button
+                class="flex-1 py-2 rounded-xl bg-muted text-destructive text-xs font-semibold flex items-center justify-center gap-1"
+              >
+                Refuser</button
+              ><button
+                class="flex-1 py-2 rounded-xl bg-secondary text-secondary-foreground text-xs font-semibold flex items-center justify-center gap-1"
+              >
+                <iconify-icon
+                  icon="solar:pen-new-square-outline"
+                  width="16"
+                  height="16"
+                ></iconify-icon
+                >Signer électroniquement
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+      <nav
+        class="fixed bottom-0 inset-x-0 bg-card/95 backdrop-blur border-t border-border px-3 pt-3 pb-5 flex justify-around z-10"
+        aria-label="Navigation principale"
+      >
+        <button class="flex-1 flex flex-col items-center gap-1 text-muted-foreground">
+          <iconify-icon icon="solar:widget-2-outline" width="20" height="20"></iconify-icon
+          ><span class="text-[11px]">Dashboard</span></button
+        ><button class="flex-1 flex flex-col items-center gap-1 text-primary">
+          <iconify-icon icon="solar:checklist-bold" width="20" height="20"></iconify-icon
+          ><span class="text-[11px] font-semibold">Validation</span>
+        </button>
+      </nav>
+    </div>
+  </body>
+</html>

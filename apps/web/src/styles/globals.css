@@ -1,68 +1,197 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Manrope:wght@200..800&family=JetBrains+Mono:wght@100..800&family=Playfair+Display:wght@400..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Design system Projetto1
+   Source : maquettes export-html (direction, enseignant,
+   élève, parent). Les mêmes valeurs sont reprises dans
+   apps/mobile/src/theme pour que web et mobile soient
+   indiscernables.
+
+   Les tokens sont des variables CSS pour rester lisibles ici
+   et réutilisables partout — y compris dans du style inline.
+   ============================================================ */
+
 @layer base {
+  :root {
+    /* Surfaces */
+    --background: #f6f8fb;
+    --foreground: #14213d;
+    --card: #ffffff;
+    --card-foreground: #14213d;
+    --popover: #ffffff;
+
+    /* Identité */
+    --primary: #145da0;
+    --primary-foreground: #ffffff;
+    --secondary: #0f766e;
+    --secondary-foreground: #ffffff;
+    --accent: #f4a62a;
+    --accent-foreground: #3b2605;
+    --destructive: #c2413b;
+
+    /* Neutres */
+    --muted: #e8eef5;
+    --muted-foreground: #5e7188;
+    --border: #d8e1eb;
+    --input: #f1f5f9;
+    --ring: #2d8cbe;
+
+    /* Séries de graphiques */
+    --chart-1: #145da0;
+    --chart-2: #0f766e;
+    --chart-3: #f4a62a;
+    --chart-4: #7c5cfc;
+    --chart-5: #d85a8a;
+
+    /* Mêmes couleurs en canaux RGB.
+       Tailwind 3 ne sait appliquer une opacité (`bg-primary/10`) que
+       sur une couleur exprimée en canaux : `rgb(var(--x-rgb) / <alpha>)`.
+       Les variables hex ci-dessus restent utilisées par le CSS brut et
+       les styles inline, où elles sont plus lisibles. */
+    --background-rgb: 246 248 251;
+    --foreground-rgb: 20 33 61;
+    --card-rgb: 255 255 255;
+    --primary-rgb: 20 93 160;
+    --primary-foreground-rgb: 255 255 255;
+    --secondary-rgb: 15 118 110;
+    --secondary-foreground-rgb: 255 255 255;
+    --accent-rgb: 244 166 42;
+    --accent-foreground-rgb: 59 38 5;
+    --destructive-rgb: 194 65 59;
+    --muted-rgb: 232 238 245;
+    --muted-foreground-rgb: 94 113 136;
+    --border-rgb: 216 225 235;
+    --input-rgb: 241 245 249;
+    --ring-rgb: 45 140 190;
+
+    --radius: 0.75rem;
+  }
+
   * {
     box-sizing: border-box;
+    border-color: var(--border);
   }
 
   body {
-    @apply bg-surface-secondary text-gray-900 font-sans antialiased;
+    @apply bg-background text-foreground font-sans antialiased;
   }
 
-  h1 { @apply text-3xl font-bold tracking-tight; }
-  h2 { @apply text-2xl font-semibold; }
-  h3 { @apply text-lg font-semibold; }
+  /* Manrope pour les titres : c'est ce qui donne aux maquettes
+     leur allure un peu plus dense que du Inter partout. */
+  h1, h2, h3, h4 {
+    @apply font-heading;
+  }
+
+  h1 { @apply text-2xl font-bold tracking-tight; }
+  h2 { @apply text-lg font-bold; }
+  h3 { @apply text-sm font-bold; }
+
+  /* Les chiffres alignés verticalement dans les tableaux et les
+     tuiles de KPI : sans cela, les montants « sautent ». */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 @layer components {
+  /* ── Boutons ───────────────────────────────────────────────── */
+
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold
            transition-all duration-150 cursor-pointer select-none focus:outline-none
-           focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+           focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:pointer-events-none;
   }
 
-  .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700
-           focus:ring-primary-500 active:bg-primary-800;
-  }
+  .btn-primary   { @apply btn bg-primary text-primary-foreground hover:brightness-110 active:scale-[0.98] shadow-sm; }
+  .btn-secondary { @apply btn bg-card text-foreground border border-border hover:bg-muted/70; }
+  .btn-ghost     { @apply btn text-muted-foreground hover:bg-muted/70; }
+  .btn-danger    { @apply btn bg-destructive text-white hover:brightness-110; }
+  .btn-success   { @apply btn bg-secondary text-secondary-foreground hover:brightness-110; }
+  .btn-outline   { @apply btn bg-transparent text-primary border border-primary/30 hover:bg-primary/5; }
 
-  .btn-secondary {
-    @apply btn bg-white text-gray-700 border border-gray-200
-           hover:bg-gray-50 focus:ring-primary-500;
-  }
+  .btn-xs { @apply px-2 py-1 text-xs; }
+  .btn-sm { @apply px-3 py-1.5 text-sm; }
+  .btn-md { @apply px-4 py-2 text-sm; }
+  .btn-lg { @apply px-6 py-3 text-base; }
 
-  .btn-ghost {
-    @apply btn text-gray-600 hover:bg-gray-100 focus:ring-gray-400;
-  }
-
-  .btn-danger {
-    @apply btn bg-danger-600 text-white hover:bg-danger-700 focus:ring-danger-500;
-  }
-
-  .btn-sm  { @apply px-3 py-1.5 text-sm; }
-  .btn-md  { @apply px-4 py-2 text-sm; }
-  .btn-lg  { @apply px-6 py-3 text-base; }
+  /* ── Champs ────────────────────────────────────────────────── */
 
   .input {
-    @apply w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm
-           text-gray-900 placeholder-gray-400 transition
-           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-           disabled:opacity-50 disabled:bg-gray-50;
+    @apply w-full rounded-xl border border-border bg-input px-4 py-2.5 text-sm
+           text-foreground placeholder-muted-foreground transition
+           focus:outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring
+           disabled:opacity-60;
   }
+
+  /* ── Cartes ────────────────────────────────────────────────── */
 
   .card {
-    @apply bg-white rounded-2xl shadow-card border border-gray-100 p-6;
+    @apply bg-card border border-border rounded-2xl shadow-sm;
   }
 
-  .badge {
-    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  .card-hover {
+    @apply card transition-all hover:shadow-md hover:border-primary/25;
+  }
+
+  /* Titre de section : réutilisé dans toutes les maquettes. */
+  .section-title {
+    @apply font-heading font-bold text-sm text-foreground;
+  }
+
+  .section-subtitle {
+    @apply text-[11px] text-muted-foreground;
+  }
+
+  /* ── Pastilles ─────────────────────────────────────────────── */
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold;
+  }
+
+  .chip-primary   { @apply chip bg-primary/10 text-primary; }
+  .chip-secondary { @apply chip bg-secondary/10 text-secondary; }
+  .chip-accent    { @apply chip bg-accent/15 text-accent-foreground; }
+  .chip-danger    { @apply chip bg-destructive/10 text-destructive; }
+  .chip-muted     { @apply chip bg-muted text-muted-foreground; }
+
+  /* ── Navigation latérale ───────────────────────────────────── */
+
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-foreground
+           hover:bg-muted/70 transition-colors text-sm font-medium;
+  }
+
+  .nav-item-active {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl bg-primary
+           text-primary-foreground font-semibold shadow-sm text-sm;
+  }
+
+  .nav-group-label {
+    @apply px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground;
   }
 }
 
-/* Scrollbar fine */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { @apply bg-gray-200 rounded-full; }
-::-webkit-scrollbar-thumb:hover { @apply bg-gray-300; }
+@layer utilities {
+  /* Les maquettes masquent les barres de défilement des rails
+     horizontaux (planning du jour, filtres de classe). */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* `corner-shape: squircle` n'est pas encore supporté partout ;
+     là où il l'est, les angles suivent les maquettes. */
+  @supports (corner-shape: squircle) {
+    .squircle {
+      corner-shape: squircle;
+    }
+  }
+}

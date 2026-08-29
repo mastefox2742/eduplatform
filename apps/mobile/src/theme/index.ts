@@ -3,34 +3,58 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
+/**
+ * Palette Projetto1 — identique au web (apps/web/src/styles/globals.css).
+ * Source : maquettes export-html.
+ *
+ * Les noms d'echelle (`gray.500`, `primary`) sont conserves : les
+ * ~22 000 lignes d'ecrans mobile les utilisent deja. Seules les
+ * valeurs changent, si bien que toute l'application adopte
+ * l'identite des maquettes sans etre reecrite.
+ */
 export const colors = {
-  primary:   '#2563eb',   // blue-600
-  primaryDark: '#1d4ed8', // blue-700
-  secondary: '#7c3aed',   // violet-600
-  success:   '#16a34a',   // green-600
-  warning:   '#d97706',   // amber-600
-  danger:    '#dc2626',   // red-600
-  error:     '#dc2626',   // alias danger
-  info:      '#0891b2',   // cyan-600
+  primary:     '#145DA0',   // bleu institutionnel
+  primaryDark: '#114E86',
+  primaryLight:'#2D8CBE',
+  onPrimary:   '#FFFFFF',
 
+  secondary:   '#0F766E',   // teal : valide, recouvre, present
+  onSecondary: '#FFFFFF',
+
+  accent:      '#F4A62A',   // ambre : en attente, XP, attention
+  onAccent:    '#3B2605',
+
+  success:     '#0F766E',   // les maquettes n'utilisent pas de vert vif
+  warning:     '#F4A62A',
+  danger:      '#C2413B',
+  error:       '#C2413B',   // alias danger
+  info:        '#2D8CBE',
+
+  /** Echelle neutre teintee bleu nuit, comme dans les maquettes. */
   gray: {
-    50:  '#f9fafb',
-    100: '#f3f4f6',
-    200: '#e5e7eb',
-    300: '#d1d5db',
-    400: '#9ca3af',
-    500: '#6b7280',
-    600: '#4b5563',
-    700: '#374151',
-    800: '#1f2937',
-    900: '#111827',
+    50:  '#F6F8FB',
+    100: '#F1F5F9',
+    200: '#E8EEF5',
+    300: '#D8E1EB',
+    400: '#A8B6C6',
+    500: '#5E7188',
+    600: '#455870',
+    700: '#2E4157',
+    800: '#1E2E44',
+    900: '#14213D',
   },
 
-  white: '#ffffff',
+  white: '#FFFFFF',
   black: '#000000',
-  background: '#f8fafc',
-  surface:    '#ffffff',
-  border:     '#e2e8f0',
+  background: '#F6F8FB',
+  surface:    '#FFFFFF',
+  border:     '#D8E1EB',
+  muted:      '#E8EEF5',
+  mutedText:  '#5E7188',
+  text:       '#14213D',
+
+  /** Series de graphiques, alignees sur le web. */
+  chart: ['#145DA0', '#0F766E', '#F4A62A', '#7C5CFC', '#D85A8A'],
 }
 
 export const spacing = {
@@ -42,18 +66,43 @@ export const spacing = {
   '2xl': 48,
 }
 
+/**
+ * Rayons alignés sur `--radius: 0.75rem` du web (12 px de base).
+ * Les maquettes emploient surtout `rounded-2xl` pour les cartes,
+ * d'où un `xl` généreux.
+ */
 export const radius = {
   sm:   8,
   md:   12,
   lg:   16,
   xl:   20,
+  '2xl': 24,
   full: 9999,
+}
+
+/**
+ * Familles typographiques des maquettes.
+ * Manrope pour les titres, Inter pour le texte courant.
+ *
+ * Les polices doivent être chargées au démarrage via `expo-font` ;
+ * sans cela, `undefined` renvoie à la police système, ce qui reste
+ * lisible mais perd l'identité.
+ */
+export const fontFamily = {
+  heading: 'Manrope_700Bold',
+  headingSemi: 'Manrope_600SemiBold',
+  body:    'Inter_400Regular',
+  bodyMedium: 'Inter_500Medium',
+  bodySemi: 'Inter_600SemiBold',
+  mono:    'JetBrainsMono_400Regular',
 }
 
 export const fontSize = {
   xs:   11,
   sm:   13,
   base: 15,
+  /** Alias de `base` : 14 écrans l'utilisaient déjà sous ce nom. */
+  md:   15,
   lg:   17,
   xl:   20,
   '2xl': 24,

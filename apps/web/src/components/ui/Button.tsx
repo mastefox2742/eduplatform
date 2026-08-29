@@ -2,8 +2,8 @@ import { type ButtonHTMLAttributes, forwardRef } from 'react'
 import { cn } from '@/lib/utils'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
-  size?: 'sm' | 'md' | 'lg'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'success' | 'outline'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
   loading?: boolean
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
@@ -14,13 +14,16 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const base = 'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none'
 
     const variants = {
-      primary:   'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 active:scale-[0.98]',
-      secondary: 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 focus:ring-primary-500',
-      ghost:     'text-gray-600 hover:bg-gray-100 focus:ring-gray-400',
-      danger:    'bg-danger-600 text-white hover:bg-danger-700 focus:ring-danger-500',
+      primary:   'bg-primary text-primary-foreground hover:brightness-110 focus:ring-ring active:scale-[0.98] shadow-sm',
+      secondary: 'bg-card text-foreground border border-border hover:bg-muted/70 focus:ring-ring',
+      ghost:     'text-muted-foreground hover:bg-muted/70 focus:ring-ring',
+      danger:    'bg-destructive text-white hover:brightness-110 focus:ring-destructive',
+      success:   'bg-secondary text-secondary-foreground hover:brightness-110 focus:ring-secondary active:scale-[0.98]',
+      outline:   'bg-transparent text-primary border border-primary/30 hover:bg-primary/5 focus:ring-ring',
     }
 
     const sizes = {
+      xs: 'px-2 py-1 text-xs',
       sm: 'px-3 py-1.5 text-sm',
       md: 'px-4 py-2 text-sm',
       lg: 'px-6 py-3 text-base',

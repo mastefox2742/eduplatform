@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DirectionWebDashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@100;200;300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://code.iconify.design/iconify-icon/3.0.0/iconify-icon.min.js"></script>
+    <style type="text/tailwindcss">
+      @theme inline {
+        --color-background: var(--background);
+        --color-foreground: var(--foreground);
+        --color-primary: var(--primary);
+        --color-primary-foreground: var(--primary-foreground);
+        --color-secondary: var(--secondary);
+        --color-secondary-foreground: var(--secondary-foreground);
+        --color-muted: var(--muted);
+        --color-muted-foreground: var(--muted-foreground);
+        --color-accent: var(--accent);
+        --color-accent-foreground: var(--accent-foreground);
+        --color-destructive: var(--destructive);
+        --color-card: var(--card);
+        --color-card-foreground: var(--card-foreground);
+        --color-popover: var(--popover);
+        --color-popover-foreground: var(--popover-foreground);
+        --color-border: var(--border);
+        --color-input: var(--input);
+        --color-ring: var(--ring);
+        --color-chart-1: var(--chart-1);
+        --color-chart-2: var(--chart-2);
+        --color-chart-3: var(--chart-3);
+        --color-chart-4: var(--chart-4);
+        --color-chart-5: var(--chart-5);
+
+        --font-font-sans: var(--font-sans);
+        --font-font-heading: var(--font-heading);
+        --font-font-serif: var(--font-serif);
+        --font-font-mono: var(--font-mono);
+      }
+
+      @theme {
+        --radius-xs: calc(var(--radius) - 8px);
+        --radius-sm: calc(var(--radius) - 4px);
+        --radius-md: calc(var(--radius) - 2px);
+        --radius-lg: var(--radius);
+        --radius-xl: calc(var(--radius) + 4px);
+        --radius-2xl: calc(var(--radius) + 8px);
+        --radius-3xl: calc(var(--radius) + 16px);
+        --radius-4xl: calc(var(--radius) + 24px);
+      }
+
+      * {
+        corner-shape: var(--shape, round);
+      }
+
+      .rounded-full, .rounded-none,
+      .rounded-t-full, .rounded-t-none,
+      .rounded-r-full, .rounded-r-none,
+      .rounded-b-full, .rounded-b-none,
+      .rounded-l-full, .rounded-l-none,
+      .rounded-s-full, .rounded-s-none,
+      .rounded-e-full, .rounded-e-none,
+      .rounded-tl-full, .rounded-tl-none,
+      .rounded-tr-full, .rounded-tr-none,
+      .rounded-bl-full, .rounded-bl-none,
+      .rounded-br-full, .rounded-br-none,
+      .rounded-ss-full, .rounded-ss-none,
+      .rounded-se-full, .rounded-se-none,
+      .rounded-es-full, .rounded-es-none,
+      .rounded-ee-full, .rounded-ee-none {
+        corner-shape: round;
+      }
+
+      @utility rounded-* {
+        border-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-t-* {
+        border-top-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-top-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-r-* {
+        border-top-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-bottom-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-b-* {
+        border-bottom-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-bottom-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-l-* {
+        border-top-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-bottom-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-tl-* {
+        border-top-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-tr-* {
+        border-top-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-bl-* {
+        border-bottom-left-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-br-* {
+        border-bottom-right-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-s-* {
+        border-start-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-end-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-e-* {
+        border-start-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+        border-end-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-ss-* {
+        border-start-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-se-* {
+        border-start-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-es-* {
+        border-end-start-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+      @utility rounded-ee-* {
+        border-end-end-radius: calc(--value(--radius-*, [length], [percentage]) * var(--shape-multiplier, 1));
+      }
+
+      :root {
+        --shape: squircle;
+        --shape-multiplier: 1;
+
+          --background: #F6F8FB;
+        --foreground: #14213D;
+        --primary: #145DA0;
+        --primary-foreground: #FFFFFF;
+        --secondary: #0F766E;
+        --secondary-foreground: #FFFFFF;
+        --muted: #E8EEF5;
+        --muted-foreground: #5E7188;
+        --accent: #F4A62A;
+        --accent-foreground: #3B2605;
+        --destructive: #C2413B;
+        --card: #FFFFFF;
+        --card-foreground: #14213D;
+        --popover: #FFFFFF;
+        --popover-foreground: #14213D;
+        --border: #D8E1EB;
+        --input: #F1F5F9;
+        --ring: #2D8CBE;
+        --chart-1: #145DA0;
+        --chart-2: #0F766E;
+        --chart-3: #F4A62A;
+        --chart-4: #7C5CFC;
+        --chart-5: #D85A8A;
+
+        --font-sans: "Inter";
+        --font-heading: "Manrope";
+        --font-serif: "Playfair Display";
+        --font-mono: "JetBrains Mono";
+
+        --radius: 0.75rem;
+      }
+
+      @supports (corner-shape: squircle) {
+        :root {
+          --shape-multiplier: 2.5;
+        }
+      }
+
+      /* Prevent layout shift for icons without explicit dimensions */
+      iconify-icon:not([width]):not([height]) {
+        display: inline-block;
+        width: 1em;
+        height: 1em;
+      }
+
+      /* Hide scrollbars */
+      *,
+      *::before,
+      *::after {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+      *::-webkit-scrollbar {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="min-h-screen bg-background text-foreground font-sans flex flex-col lg:flex-row">
+      <aside
+        class="w-full lg:w-72 bg-card border-r border-border flex-shrink-0 flex flex-col justify-between p-4 lg:min-h-screen"
+      >
+        <div class="space-y-6">
+          <div class="flex items-center gap-3 px-2 py-1">
+            <div
+              class="size-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-heading font-extrabold text-xl shadow-sm"
+            >
+              P1
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-1.5">
+                <span class="font-heading font-bold text-base tracking-tight truncate"
+                  >Projetto1</span
+                ><span
+                  class="text-[10px] uppercase font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded"
+                  >ERP</span
+                >
+              </div>
+              <p class="text-xs text-muted-foreground truncate">Lycée La Référence · Bzv</p>
+            </div>
+          </div>
+          <div
+            class="bg-input/70 border border-border rounded-xl p-2.5 flex items-center justify-between"
+          >
+            <div class="flex items-center gap-2">
+              <iconify-icon
+                icon="solar:calendar-date-bold"
+                class="text-secondary"
+                width="16"
+                height="16"
+              ></iconify-icon>
+              <div class="text-xs">
+                <span class="font-semibold block">Année 2023–2024</span
+                ><span class="text-muted-foreground text-[11px]">Trimestre 2 · En cours</span>
+              </div>
+            </div>
+            <iconify-icon
+              icon="solar:alt-arrow-down-outline"
+              class="text-muted-foreground"
+              width="14"
+              height="14"
+            ></iconify-icon>
+          </div>
+          <nav class="space-y-1 text-sm font-medium">
+            <p
+              class="px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2"
+            >
+              Direction Générale
+            </p>
+            <a
+              href="#"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold shadow-sm transition-all"
+              ><iconify-icon icon="solar:widget-2-bold" width="20" height="20"></iconify-icon
+              ><span>Tableau de Bord</span></a
+            ><a
+              href="#"
+              class="flex items-center justify-between px-3 py-2.5 rounded-xl text-foreground hover:bg-muted/70 transition-colors"
+              ><div class="flex items-center gap-3">
+                <iconify-icon
+                  icon="solar:diploma-verified-outline"
+                  class="text-primary"
+                  width="20"
+                  height="20"
+                ></iconify-icon
+                ><span>Validation Bulletins</span>
+              </div>
+              <span
+                class="text-xs font-bold px-2 py-0.5 rounded-full bg-accent text-accent-foreground"
+                >28</span
+              ></a
+            ><a
+              href="#"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-foreground hover:bg-muted/70 transition-colors"
+              ><iconify-icon
+                icon="solar:users-group-rounded-outline"
+                class="text-primary"
+                width="20"
+                height="20"
+              ></iconify-icon
+              ><span>Élèves &amp; Inscriptions</span></a
+            ><a
+              href="#"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-foreground hover:bg-muted/70 transition-colors"
+              ><iconify-icon
+                icon="solar:user-speak-outline"
+                class="text-primary"
+                width="20"
+                height="20"
+              ></iconify-icon
+              ><span>Corps Enseignant</span></a
+            ><a
+              href="#"
+              class="flex items-center justify-between px-3 py-2.5 rounded-xl text-foreground hover:bg-muted/70 transition-colors"
+              ><div class="flex items-center gap-3">
+                <iconify-icon
+                  icon="solar:wallet-money-outline"
+                  class="text-primary"
+                  width="20"
+                  height="20"
+                ></iconify-icon
+                ><span>Finance &amp; Caisse</span>
+              </div>
+              <span class="text-[11px] font-semibold text-secondary">84% recouv.</span></a
+            >
+            <p
+              class="px-3 text-[11px] font-bold uppercase tracking-wider text-muted-foreground pt-4 mb-2"
+            >
+              Pédagogie &amp; Examens
+            </p>
+            <a
+              href="#"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-foreground hover:bg-muted/70 transition-colors"
+              ><iconify-icon
+                icon="solar:notebook-bookmark-outline"
+                class="text-muted-foreground"
+                width="20"
+                height="20"
+              ></iconify-icon
+              ><span>Directeur des Études</span></a
+            ><a
+              href="#"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-foreground hover:bg-muted/70 transition-colors"
+              ><iconify-icon
+                icon="solar:shield-warning-outline"
+                class="text-muted-foreground"
+                width="20"
+                height="20"
+              ></iconify-icon
+              ><span>Surveillance &amp; Discipline</span></a
+            ><a
+              href="#"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-foreground hover:bg-muted/70 transition-colors"
+              ><iconify-icon
+                icon="solar:document-add-outline"
+                class="text-muted-foreground"
+                width="20"
+                height="20"
+              ></iconify-icon
+              ><span>Rapports &amp; Inspection</span></a
+            ><a
+              href="#"
+              class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-foreground hover:bg-muted/70 transition-colors"
+              ><iconify-icon
+                icon="solar:settings-outline"
+                class="text-muted-foreground"
+                width="20"
+                height="20"
+              ></iconify-icon
+              ><span>Paramètres Établissement</span></a
+            >
+          </nav>
+        </div>
+        <div class="pt-4 border-t border-border space-y-3">
+          <div
+            class="bg-secondary/10 border border-secondary/20 rounded-xl p-2.5 flex items-center justify-between"
+          >
+            <div class="flex items-center gap-2">
+              <span class="size-2 rounded-full bg-secondary animate-pulse"></span
+              ><span class="text-xs font-semibold text-secondary"
+                >Serveur Cloud &amp; MoMo Actifs</span
+              >
+            </div>
+            <span class="text-[10px] font-mono text-secondary">100% Sync</span>
+          </div>
+          <div class="flex items-center gap-3 p-1">
+            <img
+              src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&amp;fit=crop&amp;w=120&amp;q=80"
+              alt="Mme Nsimba"
+              class="size-10 rounded-full object-cover border border-border"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="text-xs font-bold truncate">Mme Christine Nsimba</p>
+              <p class="text-[11px] text-muted-foreground truncate">Directrice Générale</p>
+            </div>
+            <button aria-label="Déconnexion" class="text-muted-foreground hover:text-foreground">
+              <iconify-icon icon="solar:logout-2-outline" width="16" height="16"></iconify-icon>
+            </button>
+          </div>
+        </div>
+      </aside>
+      <div class="flex-1 flex flex-col min-w-0 bg-background overflow-x-hidden">
+        <header
+          class="h-16 bg-card border-b border-border px-6 flex items-center justify-between gap-4 sticky top-0 z-20"
+        >
+          <div class="flex-1 max-w-xl relative">
+            <iconify-icon
+              icon="solar:magnifer-outline"
+              class="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+              width="16"
+              height="16"
+            ></iconify-icon
+            ><input
+              type="text"
+              placeholder="Rechercher élève, matricule, classe (ex: Tle C), enseignant, reçu de paiement..."
+              class="w-full pl-10 pr-4 py-2 rounded-xl bg-input text-xs border border-transparent focus:border-primary focus:outline-none placeholder:text-muted-foreground"
+            />
+            <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              <kbd
+                class="text-[10px] bg-card border border-border px-1.5 py-0.5 rounded text-muted-foreground"
+                >⌘K</kbd
+              >
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div
+              class="hidden sm:flex items-center bg-input rounded-xl p-1 text-xs border border-border"
+            >
+              <button class="px-3 py-1 rounded-lg bg-card font-semibold shadow-sm text-primary">
+                Tous cycles</button
+              ><button class="px-3 py-1 rounded-lg text-muted-foreground hover:text-foreground">
+                Primaire</button
+              ><button class="px-3 py-1 rounded-lg text-muted-foreground hover:text-foreground">
+                Collège</button
+              ><button class="px-3 py-1 rounded-lg text-muted-foreground hover:text-foreground">
+                Lycée
+              </button>
+            </div>
+            <button
+              class="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-semibold hover:bg-emerald-700 shadow-sm transition"
+            >
+              <iconify-icon icon="mdi:whatsapp" width="16" height="16"></iconify-icon
+              ><span>Diffuser Annonce</span></button
+            ><button
+              aria-label="Notifications"
+              class="relative size-9 rounded-xl bg-card border border-border flex items-center justify-center hover:bg-muted/50 transition"
+            >
+              <iconify-icon
+                icon="solar:bell-bing-outline"
+                class="text-foreground"
+                width="18"
+                height="18"
+              ></iconify-icon
+              ><span
+                class="absolute -top-1 -right-1 size-4 rounded-full bg-accent text-accent-foreground text-[10px] font-bold flex items-center justify-center"
+                >3</span
+              ></button
+            ><button
+              class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shadow-sm hover:opacity-95 transition"
+            >
+              <iconify-icon icon="solar:file-download-linear" width="16" height="16"></iconify-icon
+              ><span class="hidden sm:inline">Rapport Mensuel PDF</span>
+            </button>
+          </div>
+        </header>
+        <main class="p-6 space-y-6 flex-1 max-w-7xl w-full mx-auto">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <h1 class="font-heading text-2xl font-bold tracking-tight">
+                  Tableau de Bord Institutionnel
+                </h1>
+                <span
+                  class="text-xs px-2.5 py-0.5 rounded-full bg-secondary/15 text-secondary font-semibold"
+                  >Trimestre 2</span
+                >
+              </div>
+              <p class="text-xs text-muted-foreground mt-0.5">
+                Synthèse globale pédagogique, administrative et financière en temps réel
+              </p>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              <span class="text-muted-foreground">Dernière mise à jour :</span
+              ><span class="font-semibold bg-card border border-border px-2.5 py-1 rounded-lg"
+                >Aujourd'hui à 11:42</span
+              >
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div
+              class="bg-card border border-border rounded-2xl p-5 shadow-sm hover:border-primary/40 transition"
+            >
+              <div class="flex items-center justify-between">
+                <span
+                  class="size-10 rounded-xl bg-blue-50 text-primary flex items-center justify-center"
+                  ><iconify-icon
+                    icon="solar:users-group-rounded-bold"
+                    width="20"
+                    height="20"
+                  ></iconify-icon></span
+                ><span
+                  class="text-xs font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-md"
+                  >+4.2% N-1</span
+                >
+              </div>
+              <div class="mt-4">
+                <h2 class="text-xs font-semibold text-muted-foreground">
+                  Effectifs Globaux Inscrits
+                </h2>
+                <p class="font-heading text-3xl font-extrabold tracking-tight mt-1">842</p>
+                <div
+                  class="mt-3 flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border"
+                >
+                  <span>430 Filles (51%)</span><span>412 Garçons (49%)</span>
+                </div>
+              </div>
+            </div>
+            <div
+              class="bg-card border border-border rounded-2xl p-5 shadow-sm hover:border-secondary/40 transition"
+            >
+              <div class="flex items-center justify-between">
+                <span
+                  class="size-10 rounded-xl bg-teal-50 text-secondary flex items-center justify-center"
+                  ><iconify-icon
+                    icon="solar:user-check-bold"
+                    width="20"
+                    height="20"
+                  ></iconify-icon></span
+                ><span
+                  class="text-xs font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-md"
+                  >94.6%</span
+                >
+              </div>
+              <div class="mt-4">
+                <h2 class="text-xs font-semibold text-muted-foreground">Assiduité Aujourd'hui</h2>
+                <p class="font-heading text-3xl font-extrabold tracking-tight mt-1 text-secondary">
+                  797 <span class="text-sm font-medium text-muted-foreground">/ 842</span>
+                </p>
+                <div
+                  class="mt-3 flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border"
+                >
+                  <span class="text-destructive font-semibold">45 Absences</span
+                  ><span class="text-muted-foreground">12 justifiées</span>
+                </div>
+              </div>
+            </div>
+            <div
+              class="bg-card border border-border rounded-2xl p-5 shadow-sm hover:border-accent/40 transition"
+            >
+              <div class="flex items-center justify-between">
+                <span
+                  class="size-10 rounded-xl bg-amber-50 text-accent flex items-center justify-center"
+                  ><iconify-icon
+                    icon="solar:wallet-money-bold"
+                    width="20"
+                    height="20"
+                  ></iconify-icon></span
+                ><span class="text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-md"
+                  >84% Recouvert</span
+                >
+              </div>
+              <div class="mt-4">
+                <h2 class="text-xs font-semibold text-muted-foreground">
+                  Encaissements Scolarité T2
+                </h2>
+                <p class="font-heading text-2xl font-extrabold tracking-tight mt-1">
+                  42 850 000 <span class="text-xs font-medium text-muted-foreground">FCFA</span>
+                </p>
+                <div
+                  class="mt-3 flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border"
+                >
+                  <span>Objectif : 51.0M</span
+                  ><span class="text-destructive font-semibold">8.15M Restants</span>
+                </div>
+              </div>
+            </div>
+            <div
+              class="bg-card border border-border rounded-2xl p-5 shadow-sm hover:border-primary/40 transition"
+            >
+              <div class="flex items-center justify-between">
+                <span
+                  class="size-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center"
+                  ><iconify-icon
+                    icon="solar:diploma-verified-bold"
+                    width="20"
+                    height="20"
+                  ></iconify-icon></span
+                ><span class="text-xs font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-md"
+                  >Action requise</span
+                >
+              </div>
+              <div class="mt-4">
+                <h2 class="text-xs font-semibold text-muted-foreground">
+                  Bulletins &amp; Signatures
+                </h2>
+                <p class="font-heading text-3xl font-extrabold tracking-tight mt-1 text-primary">
+                  28 <span class="text-sm font-medium text-muted-foreground">classes</span>
+                </p>
+                <div
+                  class="mt-3 flex items-center justify-between text-[11px] text-muted-foreground pt-2 border-t border-border"
+                >
+                  <span>18 Validées DE</span
+                  ><span class="text-accent font-semibold">10 En attente</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-6">
+              <div class="bg-card border border-border rounded-2xl p-5 shadow-sm">
+                <div
+                  class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-border"
+                >
+                  <div>
+                    <h3 class="font-heading font-bold text-base">
+                      Suivi des Recouvrements &amp; Canaux de Paiement
+                    </h3>
+                    <p class="text-xs text-muted-foreground">
+                      Flux cumulés Tranche 1 &amp; Tranche 2 (Espèces caisse vs Mobile Money)
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+                      ><span class="size-2.5 rounded-full bg-primary"></span> MTN MoMo</span
+                    ><span class="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+                      ><span class="size-2.5 rounded-full bg-secondary"></span> Airtel Money</span
+                    ><span class="inline-flex items-center gap-1.5 text-xs text-muted-foreground"
+                      ><span class="size-2.5 rounded-full bg-accent"></span> Caisse Espèce</span
+                    >
+                  </div>
+                </div>
+                <div class="mt-5 space-y-3">
+                  <div>
+                    <div class="flex justify-between text-xs font-semibold mb-1">
+                      <span>Lycée (2nde, 1ère, Tle) · 18 200 000 / 20 000 000 FCFA</span
+                      ><span class="text-secondary font-bold">91%</span>
+                    </div>
+                    <div class="h-3 w-full bg-muted rounded-full overflow-hidden flex">
+                      <div class="bg-primary h-full" style="width: 55%"></div>
+                      <div class="bg-secondary h-full" style="width: 25%"></div>
+                      <div class="bg-accent h-full" style="width: 11%"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-xs font-semibold mb-1">
+                      <span>Collège (6ème, 5ème, 4ème, 3ème) · 16 150 000 / 21 000 000 FCFA</span
+                      ><span class="text-secondary font-bold">77%</span>
+                    </div>
+                    <div class="h-3 w-full bg-muted rounded-full overflow-hidden flex">
+                      <div class="bg-primary h-full" style="width: 45%"></div>
+                      <div class="bg-secondary h-full" style="width: 20%"></div>
+                      <div class="bg-accent h-full" style="width: 12%"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-xs font-semibold mb-1">
+                      <span>Primaire (CP1 au CM2) · 8 500 000 / 10 000 000 FCFA</span
+                      ><span class="text-secondary font-bold">85%</span>
+                    </div>
+                    <div class="h-3 w-full bg-muted rounded-full overflow-hidden flex">
+                      <div class="bg-primary h-full" style="width: 38%"></div>
+                      <div class="bg-secondary h-full" style="width: 30%"></div>
+                      <div class="bg-accent h-full" style="width: 17%"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-5 pt-4 border-t border-border grid grid-cols-3 gap-3 text-center">
+                  <div class="bg-input/60 rounded-xl p-3">
+                    <p class="text-[11px] text-muted-foreground font-medium">MTN Mobile Money</p>
+                    <p class="font-heading font-bold text-sm text-primary mt-0.5">
+                      22 450 000 FCFA
+                    </p>
+                    <span class="text-[10px] text-secondary font-semibold">52.4% du total</span>
+                  </div>
+                  <div class="bg-input/60 rounded-xl p-3">
+                    <p class="text-[11px] text-muted-foreground font-medium">Airtel Money</p>
+                    <p class="font-heading font-bold text-sm text-secondary mt-0.5">
+                      14 100 000 FCFA
+                    </p>
+                    <span class="text-[10px] text-secondary font-semibold">32.9% du total</span>
+                  </div>
+                  <div class="bg-input/60 rounded-xl p-3">
+                    <p class="text-[11px] text-muted-foreground font-medium">Caisse Directe</p>
+                    <p class="font-heading font-bold text-sm text-accent-foreground mt-0.5">
+                      6 300 000 FCFA
+                    </p>
+                    <span class="text-[10px] text-muted-foreground font-semibold"
+                      >14.7% du total</span
+                    >
+                  </div>
+                </div>
+              </div>
+              <div class="bg-card border border-border rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between pb-4 border-b border-border">
+                  <div>
+                    <h3 class="font-heading font-bold text-base">
+                      Validation Institutionnelle des Bulletins
+                    </h3>
+                    <p class="text-xs text-muted-foreground">
+                      Conseils de classe terminés · Prêts pour signature électronique
+                    </p>
+                  </div>
+                  <button
+                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90"
+                  >
+                    <iconify-icon
+                      icon="solar:pen-new-square-bold"
+                      width="16"
+                      height="16"
+                    ></iconify-icon
+                    ><span>Signer la sélection (18)</span>
+                  </button>
+                </div>
+                <div class="overflow-x-auto mt-4">
+                  <table class="w-full text-left text-xs">
+                    <thead>
+                      <tr class="border-b border-border text-muted-foreground">
+                        <th class="pb-2.5 font-semibold">Classe</th>
+                        <th class="pb-2.5 font-semibold">Effectif</th>
+                        <th class="pb-2.5 font-semibold">Moy. Générale</th>
+                        <th class="pb-2.5 font-semibold">Directeur des Études</th>
+                        <th class="pb-2.5 font-semibold">Statut</th>
+                        <th class="pb-2.5 text-right font-semibold">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border/60">
+                      <tr class="hover:bg-muted/40 transition">
+                        <td class="py-3 font-semibold text-foreground flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked
+                            class="rounded border-border text-primary focus:ring-0"
+                          /><span>Terminale C</span>
+                        </td>
+                        <td class="py-3 text-muted-foreground">34 élèves</td>
+                        <td class="py-3 font-heading font-bold text-secondary">13.45 / 20</td>
+                        <td class="py-3">
+                          <span class="inline-flex items-center gap-1 text-secondary font-medium"
+                            ><iconify-icon
+                              icon="solar:check-circle-bold"
+                              width="14"
+                              height="14"
+                            ></iconify-icon
+                            >Validé par M. Makosso</span
+                          >
+                        </td>
+                        <td class="py-3">
+                          <span
+                            class="px-2 py-0.5 rounded-full bg-accent/15 text-accent-foreground font-semibold text-[11px]"
+                            >En attente Direction</span
+                          >
+                        </td>
+                        <td class="py-3 text-right">
+                          <button
+                            class="px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground font-semibold transition"
+                          >
+                            Signer &amp; Diffuser
+                          </button>
+                        </td>
+                      </tr>
+                      <tr class="hover:bg-muted/40 transition">
+                        <td class="py-3 font-semibold text-foreground flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked
+                            class="rounded border-border text-primary focus:ring-0"
+                          /><span>Terminale D1</span>
+                        </td>
+                        <td class="py-3 text-muted-foreground">42 élèves</td>
+                        <td class="py-3 font-heading font-bold text-secondary">12.80 / 20</td>
+                        <td class="py-3">
+                          <span class="inline-flex items-center gap-1 text-secondary font-medium"
+                            ><iconify-icon
+                              icon="solar:check-circle-bold"
+                              width="14"
+                              height="14"
+                            ></iconify-icon
+                            >Validé par M. Makosso</span
+                          >
+                        </td>
+                        <td class="py-3">
+                          <span
+                            class="px-2 py-0.5 rounded-full bg-accent/15 text-accent-foreground font-semibold text-[11px]"
+                            >En attente Direction</span
+                          >
+                        </td>
+                        <td class="py-3 text-right">
+                          <button
+                            class="px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground font-semibold transition"
+                          >
+                            Signer &amp; Diffuser
+                          </button>
+                        </td>
+                      </tr>
+                      <tr class="hover:bg-muted/40 transition">
+                        <td class="py-3 font-semibold text-foreground flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked
+                            class="rounded border-border text-primary focus:ring-0"
+                          /><span>3ème A (Brevet)</span>
+                        </td>
+                        <td class="py-3 text-muted-foreground">38 élèves</td>
+                        <td class="py-3 font-heading font-bold text-foreground">11.90 / 20</td>
+                        <td class="py-3">
+                          <span class="inline-flex items-center gap-1 text-secondary font-medium"
+                            ><iconify-icon
+                              icon="solar:check-circle-bold"
+                              width="14"
+                              height="14"
+                            ></iconify-icon
+                            >Validé par M. Makosso</span
+                          >
+                        </td>
+                        <td class="py-3">
+                          <span
+                            class="px-2 py-0.5 rounded-full bg-accent/15 text-accent-foreground font-semibold text-[11px]"
+                            >En attente Direction</span
+                          >
+                        </td>
+                        <td class="py-3 text-right">
+                          <button
+                            class="px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground font-semibold transition"
+                          >
+                            Signer &amp; Diffuser
+                          </button>
+                        </td>
+                      </tr>
+                      <tr class="hover:bg-muted/40 transition opacity-75">
+                        <td class="py-3 font-semibold text-foreground flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            disabled
+                            class="rounded border-border text-muted"
+                          /><span>Première A4</span>
+                        </td>
+                        <td class="py-3 text-muted-foreground">36 élèves</td>
+                        <td class="py-3 font-heading font-bold text-muted-foreground">-- / 20</td>
+                        <td class="py-3">
+                          <span class="inline-flex items-center gap-1 text-accent font-medium"
+                            ><iconify-icon
+                              icon="solar:clock-circle-bold"
+                              width="14"
+                              height="14"
+                            ></iconify-icon
+                            >1 note de Philo manquante</span
+                          >
+                        </td>
+                        <td class="py-3">
+                          <span
+                            class="px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium text-[11px]"
+                            >Saisie DE en cours</span
+                          >
+                        </td>
+                        <td class="py-3 text-right">
+                          <button
+                            disabled
+                            class="px-2.5 py-1 rounded-lg bg-muted text-muted-foreground cursor-not-allowed font-medium"
+                          >
+                            Bloqué
+                          </button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div class="space-y-6">
+              <div class="bg-card border border-border rounded-2xl p-5 shadow-sm">
+                <div class="flex items-center justify-between pb-3 border-b border-border">
+                  <div class="flex items-center gap-2">
+                    <span class="size-2 rounded-full bg-destructive"></span>
+                    <h3 class="font-heading font-bold text-sm">Alertes &amp; Vie Scolaire (SG)</h3>
+                  </div>
+                  <span
+                    class="text-[11px] font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full"
+                    >3 Urgences</span
+                  >
+                </div>
+                <div class="mt-4 space-y-3">
+                  <div class="p-3 rounded-xl bg-destructive/5 border border-destructive/20">
+                    <div class="flex items-start justify-between gap-2">
+                      <p class="text-xs font-bold text-destructive">Absence répétée sans motif</p>
+                      <span class="text-[10px] text-muted-foreground">Aujourd'hui 08:30</span>
+                    </div>
+                    <p class="text-xs font-medium text-foreground mt-1">Bakala Prince (Tle D1)</p>
+                    <p class="text-[11px] text-muted-foreground mt-0.5">
+                      4ème absence consécutive. Message WhatsApp envoyé aux parents.
+                    </p>
+                    <div class="mt-2 flex gap-2">
+                      <button
+                        class="px-2 py-1 rounded bg-card border border-border text-[11px] font-semibold hover:bg-muted"
+                      >
+                        Contacter Parent</button
+                      ><button
+                        class="px-2 py-1 rounded bg-destructive text-white text-[11px] font-semibold"
+                      >
+                        Convoquer SG
+                      </button>
+                    </div>
+                  </div>
+                  <div class="p-3 rounded-xl bg-accent/5 border border-accent/20">
+                    <div class="flex items-start justify-between gap-2">
+                      <p class="text-xs font-bold text-accent-foreground">
+                        Remplacement Enseignant
+                      </p>
+                      <span class="text-[10px] text-muted-foreground">10:00 - 12:00</span>
+                    </div>
+                    <p class="text-xs font-medium text-foreground mt-1">
+                      M. Moukoko (Mathématiques)
+                    </p>
+                    <p class="text-[11px] text-muted-foreground mt-0.5">
+                      Congé médical · Remplacé par M. Loubaki en 1ère C.
+                    </p>
+                  </div>
+                  <div class="p-3 rounded-xl bg-input border border-border">
+                    <div class="flex items-start justify-between gap-2">
+                      <p class="text-xs font-bold text-foreground">Échéance Impayé Tranche 2</p>
+                      <span class="text-[10px] text-muted-foreground">Dans 48h</span>
+                    </div>
+                    <p class="text-[11px] text-muted-foreground mt-1">
+                      Relance automatique programmée par SMS / WhatsApp pour 47 familles.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-card border border-border rounded-2xl p-5 shadow-sm">
+                <h3 class="font-heading font-bold text-sm mb-3">Génération Rapide de Documents</h3>
+                <div class="space-y-2">
+                  <button
+                    class="w-full flex items-center justify-between p-2.5 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/40 transition text-left"
+                  >
+                    <div class="flex items-center gap-2.5">
+                      <span
+                        class="size-8 rounded-lg bg-blue-50 text-primary flex items-center justify-center"
+                        ><iconify-icon
+                          icon="solar:document-text-bold"
+                          width="16"
+                          height="16"
+                        ></iconify-icon
+                      ></span>
+                      <div>
+                        <p class="text-xs font-semibold">Certificats de Scolarité</p>
+                        <p class="text-[10px] text-muted-foreground">
+                          Avec QR Code officiel sécurisé
+                        </p>
+                      </div>
+                    </div>
+                    <iconify-icon
+                      icon="solar:alt-arrow-right-outline"
+                      class="text-muted-foreground"
+                      width="16"
+                      height="16"
+                    ></iconify-icon></button
+                  ><button
+                    class="w-full flex items-center justify-between p-2.5 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/40 transition text-left"
+                  >
+                    <div class="flex items-center gap-2.5">
+                      <span
+                        class="size-8 rounded-lg bg-teal-50 text-secondary flex items-center justify-center"
+                        ><iconify-icon
+                          icon="solar:bill-list-bold"
+                          width="16"
+                          height="16"
+                        ></iconify-icon
+                      ></span>
+                      <div>
+                        <p class="text-xs font-semibold">Bordereau Examen d'État (BAC/BEPC)</p>
+                        <p class="text-[10px] text-muted-foreground">
+                          Format conforme DEC Ministère
+                        </p>
+                      </div>
+                    </div>
+                    <iconify-icon
+                      icon="solar:alt-arrow-right-outline"
+                      class="text-muted-foreground"
+                      width="16"
+                      height="16"
+                    ></iconify-icon></button
+                  ><button
+                    class="w-full flex items-center justify-between p-2.5 rounded-xl border border-border hover:border-primary/50 hover:bg-muted/40 transition text-left"
+                  >
+                    <div class="flex items-center gap-2.5">
+                      <span
+                        class="size-8 rounded-lg bg-amber-50 text-accent flex items-center justify-center"
+                        ><iconify-icon
+                          icon="solar:chart-square-bold"
+                          width="16"
+                          height="16"
+                        ></iconify-icon
+                      ></span>
+                      <div>
+                        <p class="text-xs font-semibold">Journal de Caisse &amp; Rapprochement</p>
+                        <p class="text-[10px] text-muted-foreground">
+                          Export Excel comptable certifié
+                        </p>
+                      </div>
+                    </div>
+                    <iconify-icon
+                      icon="solar:alt-arrow-right-outline"
+                      class="text-muted-foreground"
+                      width="16"
+                      height="16"
+                    ></iconify-icon>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

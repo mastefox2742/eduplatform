@@ -7,6 +7,7 @@ import * as functions from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import { Notification, CustomClaims } from "../types";
 import { writeAuditLog } from "../utils/audit";
+import { requireClaims } from "../utils/claims";
 
 const db = admin.firestore();
 const messaging = admin.messaging();
@@ -37,7 +38,7 @@ export const sendNotification = functions.https.onCall(
       throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }
 
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     const {
       recipientUid,
       recipientClasseId,

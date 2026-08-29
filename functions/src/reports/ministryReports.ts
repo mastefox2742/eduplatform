@@ -19,7 +19,7 @@ import * as functions from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import ExcelJS from "exceljs";
 import { writeAuditLog } from "../utils/audit";
-import { CustomClaims } from "../types";
+import { requireClaims } from "../utils/claims";
 
 const db      = admin.firestore();
 const storage = admin.storage();
@@ -291,7 +291,7 @@ export const generateMinistryReport = functions.https.onCall(
   }>) => {
     if (!request.auth) throw new functions.https.HttpsError("unauthenticated", "Auth required")
 
-    const claims = request.auth.token as CustomClaims
+    const claims = requireClaims(request.auth.token)
     if (!["direction", "admin"].includes(claims.role)) {
       throw new functions.https.HttpsError("permission-denied", "Direction uniquement")
     }
@@ -337,7 +337,7 @@ export const generateMinistryReport = functions.https.onCall(
     }
 
     // 4. Upload Storage
-    const buffer      = await wb.xlsx.writeBuffer() as Buffer
+    const buffer      = Buffer.from(await wb.xlsx.writeBuffer() as ArrayBuffer)
     const filename    = `rapport_${reportType}_${academicYear.replace("-", "_")}_${Date.now()}.xlsx`
     const storagePath = `reports/${schoolId}/${filename}`
     const file        = storage.bucket().file(storagePath)
@@ -397,7 +397,7 @@ export const checkReportCompliance = functions.https.onCall(
     classId?:   string;
   }>) => {
     if (!request.auth) throw new functions.https.HttpsError("unauthenticated", "Auth required")
-    const claims = request.auth.token as CustomClaims
+    const claims = requireClaims(request.auth.token)
     if (!["direction", "admin"].includes(claims.role)) {
       throw new functions.https.HttpsError("permission-denied", "Direction uniquement")
     }

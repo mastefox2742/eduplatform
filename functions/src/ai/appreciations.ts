@@ -9,7 +9,7 @@
 // ============================================================
 
 import * as functions from "firebase-functions/v2";
-import { CustomClaims } from "../types";
+import { requireClaims } from "../utils/claims";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -50,7 +50,6 @@ function getTrend(current: number, previous?: number): string {
 function generateLocalAppreciation(data: StudentData): string {
   const ctx   = getGradeContext(data.average, data.maxScore);
   const trend = getTrend(data.average, data.previousAvg);
-  const pct   = (data.average / data.maxScore) * 100;
 
   const TEMPLATES: Record<string, string[]> = {
     "Excellent":       [
@@ -105,7 +104,7 @@ export const generateBulletinAppreciation = functions.https.onCall(
   }>) => {
     if (!request.auth) throw new functions.https.HttpsError("unauthenticated", "Auth required");
 
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     if (!["teacher", "direction", "admin"].includes(claims.role)) {
       throw new functions.https.HttpsError("permission-denied", "Professeurs uniquement");
     }
@@ -188,7 +187,7 @@ export const generateEmargementList = functions.https.onCall(
   }>) => {
     if (!request.auth) throw new functions.https.HttpsError("unauthenticated", "Auth required");
 
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     if (!["direction", "teacher", "admin"].includes(claims.role)) {
       throw new functions.https.HttpsError("permission-denied", "Non autorisé");
     }

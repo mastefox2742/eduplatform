@@ -7,9 +7,8 @@
 import * as functions from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import PDFDocument from "pdfkit";
-import { Readable } from "stream";
 import { writeAuditLog } from "../utils/audit";
-import { CustomClaims } from "../types";
+import { requireClaims } from "../utils/claims";
 
 const db      = admin.firestore();
 const storage = admin.storage();
@@ -161,7 +160,7 @@ export const generatePaymentReceipt = functions.https.onCall(
     }
 
     const { paymentId, schoolId } = request.data;
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
 
     // Seuls parent (pour son paiement) et direction peuvent générer un reçu
     const isParent    = claims.role === "parent" && claims.schoolId === schoolId;

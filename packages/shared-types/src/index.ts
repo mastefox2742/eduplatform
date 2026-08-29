@@ -928,3 +928,9 @@ export const DIFFICULTY_LABELS: Record<ExerciseDifficulty, string> = {
   medium: 'Moyen',
   hard: 'Difficile',
 }
+
+// ═══════════════════════════════════════════
+// TYPES ERP (migrations 004-013)
+// ═══════════════════════════════════════════
+
+export * from "./erp"

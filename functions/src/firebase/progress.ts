@@ -13,6 +13,7 @@ import {
   CustomClaims,
 } from "../types";
 import { writeAuditLog } from "../utils/audit";
+import { requireClaims } from "../utils/claims";
 
 const db = admin.firestore();
 
@@ -36,7 +37,7 @@ export const analyzeStudentProgress = functions.https.onCall(
     }
 
     const callerUid = request.auth.uid;
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     const { studentUid, courseId, periodDays = 30 } = request.data;
 
     // Vérification des autorisations d'accès à la progression

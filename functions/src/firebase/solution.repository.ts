@@ -4,13 +4,8 @@
 // Strategie de stockage et indexation pour la recherche vectorielle
 
 import * as admin from "firebase-admin";
-import {
-  TeacherSolution,
-  RAGContext,
-  RetrievedSolution,
-  ExerciseType,
-  StudentSubmission,
-} from "../types/ai.types";
+import * as functions from "firebase-functions/v2";
+import { TeacherSolution, RAGContext, RetrievedSolution, StudentSubmission } from "../types/ai.types";
 
 // Firestore collections
 const COLLECTIONS = {
@@ -137,6 +132,14 @@ export class SolutionRepository {
       .slice(0, topK);
 
     const contextTokenCount = this.estimateTokenCount(relevant);
+
+    // La latence de recuperation etait mesuree mais jamais rapportee.
+    functions.logger.debug("RAG retrieval", {
+      durationMs: Date.now() - startTime,
+      candidates: candidates.length,
+      retained:   relevant.length,
+      strategy:   exactMatch ? "EXACT_MATCH" : "VECTOR_SIMILARITY",
+    });
 
     return {
       solutions: relevant,

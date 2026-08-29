@@ -3,14 +3,7 @@
 // ============================================================
 // Toute la logique de prompt engineering est centralisee ici
 
-import {
-  StudentSubmission,
-  TeacherSolution,
-  RAGContext,
-  ExerciseType,
-  HintLevel,
-  GradingCriterion,
-} from "../types/ai.types";
+import { StudentSubmission, RAGContext, ExerciseType, HintLevel } from "../types/ai.types";
 
 // -----------------------------------------------------------
 // PROMPTS SYSTEME (immuables - defines par l'ingenieur)

@@ -4,7 +4,7 @@
 // Systeme de validation multi-couches pour detecter et bloquer
 // les reponses inventees par l'IA
 
-import { AIGradingResult, RAGContext, TeacherSolution } from "../types/ai.types";
+import { AIGradingResult, RAGContext } from "../types/ai.types";
 
 // -----------------------------------------------------------
 // TYPES DU GARDE-FOU

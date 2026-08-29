@@ -8,6 +8,7 @@ import * as functions from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import { AIProxyRequest, AIProxyResponse, CustomClaims } from "../types";
 import { writeAuditLog, checkRateLimit } from "../utils/audit";
+import { requireClaims } from "../utils/claims";
 
 const db = admin.firestore();
 
@@ -50,7 +51,7 @@ export const callAI = functions.https.onCall(
     }
 
     const callerUid = request.auth.uid;
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     const { prompt, context = "default", courseId, maxTokens = 1000 } =
       request.data;
 

@@ -336,6 +336,7 @@ describe("HallucinationGuard", () => {
 // TEST SUITE 3: VALIDATION JSON
 // -----------------------------------------------------------
 describe("JSONResponseValidator", () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { JSONResponseValidator } = require("./hallucination.guard");
 
   it("parse un JSON valide", () => {

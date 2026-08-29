@@ -12,7 +12,7 @@
 import * as functions from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import { writeAuditLog } from "../utils/audit";
-import { CustomClaims } from "../types";
+import { requireClaims } from "../utils/claims";
 
 const db = admin.firestore();
 
@@ -148,7 +148,7 @@ export const generateMonthlyPayroll = functions.https.onCall(
   }>) => {
     if (!request.auth) throw new functions.https.HttpsError("unauthenticated", "Auth required")
 
-    const claims = request.auth.token as CustomClaims
+    const claims = requireClaims(request.auth.token)
     if (!["direction", "admin"].includes(claims.role)) {
       throw new functions.https.HttpsError("permission-denied", "Direction uniquement")
     }
@@ -241,7 +241,7 @@ export const validatePayslip = functions.https.onCall(
   }>) => {
     if (!request.auth) throw new functions.https.HttpsError("unauthenticated", "Auth required")
 
-    const claims = request.auth.token as CustomClaims
+    const claims = requireClaims(request.auth.token)
     if (!["direction", "admin"].includes(claims.role)) {
       throw new functions.https.HttpsError("permission-denied", "Direction uniquement")
     }

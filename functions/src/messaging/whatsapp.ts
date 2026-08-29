@@ -17,8 +17,8 @@
 
 import * as functions from "firebase-functions/v2";
 import * as admin from "firebase-admin";
-import { CustomClaims } from "../types";
 import { writeAuditLog } from "../utils/audit";
+import { requireClaims } from "../utils/claims";
 
 const db = admin.firestore();
 
@@ -180,7 +180,7 @@ export const sendManualAlert = functions.https.onCall(
   }>) => {
     if (!request.auth) throw new functions.https.HttpsError("unauthenticated", "Auth required");
 
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     if (!["direction", "teacher", "admin"].includes(claims.role)) {
       throw new functions.https.HttpsError("permission-denied", "Non autorisé");
     }

@@ -3,6 +3,8 @@
 // ============================================================
 
 import * as functions from "firebase-functions/v2";
+// Les triggers Auth ne sont pas portes en v2 : ce declencheur reste en v1.
+import * as functionsV1 from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import { UserRecord } from "firebase-admin/auth";
 import {
@@ -19,6 +21,7 @@ import {
   hashSHA256,
 } from "../utils/crypto";
 import { writeAuditLog, checkRateLimit } from "../utils/audit";
+import { requireClaims } from "../utils/claims";
 
 const db = admin.firestore();
 const auth = admin.auth();
@@ -28,7 +31,7 @@ const auth = admin.auth();
 // Exécuté automatiquement à chaque création d'utilisateur Firebase Auth
 // Configure le profil Firestore et les Custom Claims selon le rôle
 // ---------------------------------------------------------------
-export const onCreateUser = functions.auth.user().onCreate(
+export const onCreateUser = functionsV1.auth.user().onCreate(
   async (user: UserRecord) => {
     const { uid, email, displayName } = user;
 
@@ -95,7 +98,7 @@ export const generateStudentCredentials = functions.https.onCall(
     }
 
     const callerUid = request.auth.uid;
-    const claims = request.auth.token as CustomClaims & { role?: string };
+    const claims = requireClaims(request.auth.token);
 
     // 2. Vérification du rôle - seule la direction peut créer des élèves
     if (claims.role !== "direction") {
@@ -296,7 +299,7 @@ export const setUserRole = functions.https.onCall(
       throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }
 
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     if (claims.role !== "direction") {
       throw new functions.https.HttpsError(
         "permission-denied",
@@ -361,7 +364,7 @@ export const deactivateUser = functions.https.onCall(
       throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }
 
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     if (claims.role !== "direction") {
       throw new functions.https.HttpsError(
         "permission-denied",

@@ -14,9 +14,7 @@
 import * as functions from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import ExcelJS from "exceljs";
-import { Readable } from "stream";
-import { writeAuditLog } from "../utils/audit";
-import { CustomClaims } from "../types";
+import { requireClaims } from "../utils/claims";
 
 const db      = admin.firestore();
 const storage = admin.storage();
@@ -32,14 +30,6 @@ const BRAND = {
   danger:      "FFDC2626",
   text:        "FF111827",
   textMuted:   "FF6B7280",
-}
-
-// ── Helper : style d'en-tête colonne ─────────────────────────────────────────
-function headerStyle(col: ExcelJS.Column) {
-  col.header = col.header
-  if (col.header) {
-    // appliqué via worksheet directement
-  }
 }
 
 // ── Générateurs par dataset ───────────────────────────────────────────────────
@@ -340,7 +330,7 @@ export const requestExport = functions.https.onCall(
   }>) => {
     if (!request.auth) throw new functions.https.HttpsError("unauthenticated", "Auth required")
 
-    const claims   = request.auth.token as CustomClaims
+    const claims   = requireClaims(request.auth.token)
     const schoolId = claims.schoolId
 
     if (!["direction", "admin"].includes(claims.role)) {
@@ -421,7 +411,7 @@ export const processExportJob = functions.firestore.onDocumentCreated(
       const ext    = job.format === "csv" ? "csv" : "xlsx"
       const buffer = job.format === "csv"
         ? await buildCSV(wb)
-        : await wb.xlsx.writeBuffer() as Buffer
+        : Buffer.from(await wb.xlsx.writeBuffer() as ArrayBuffer)
 
       // Upload Storage
       const filename    = `${job.dataset}_${new Date().toISOString().split("T")[0]}.${ext}`

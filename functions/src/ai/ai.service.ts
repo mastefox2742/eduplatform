@@ -5,15 +5,7 @@
 // Inclut correction, hints, analyse de progression
 
 import * as admin from "firebase-admin";
-import {
-  AIGradingResult,
-  AIServiceConfig,
-  GeneratedHint,
-  HintLevel,
-  StudentProgressAnalysis,
-  StudentSubmission,
-  TeacherSolution,
-} from "../types/ai.types";
+import { AIGradingResult, AIServiceConfig, GeneratedHint, HintLevel, StudentProgressAnalysis, StudentSubmission } from "../types/ai.types";
 import { SolutionRepository } from "../firebase/solution.repository";
 import { PromptBuilder } from "./prompt.builder";
 import { HallucinationGuard, JSONResponseValidator } from "./hallucination.guard";
@@ -35,7 +27,7 @@ const DEFAULT_CONFIG: AIServiceConfig = {
 // -----------------------------------------------------------
 // CLIENTS API IA
 // -----------------------------------------------------------
-interface GeminiMessage {
+export interface GeminiMessage {
   role: "user" | "model";
   parts: Array<{ text: string }>;
 }

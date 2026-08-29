@@ -2,7 +2,12 @@
 // TYPES ET INTERFACES CENTRAUX
 // Plateforme éducative - Données d'élèves mineurs
 // ============================================================
-export type UserRole = "direction" | "teacher" | "student";
+export type UserRole =
+  | "admin"
+  | "direction"
+  | "teacher"
+  | "student"
+  | "parent";
 
 export interface CustomClaims {
   role: UserRole;
@@ -129,7 +134,8 @@ export interface AuditLog {
   id: string;
   schoolId: string;
   actorUid: string;
-  actorRole: UserRole;
+  /** `system` pour les traitements automatiques (cascades, tâches planifiées). */
+  actorRole: UserRole | "system";
   action: string;                // ex: "student.create", "course.delete"
   targetId?: string;
   targetType?: string;

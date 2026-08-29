@@ -14,7 +14,7 @@
 import * as functions from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import { writeAuditLog } from "../utils/audit";
-import { CustomClaims } from "../types";
+import { requireClaims } from "../utils/claims";
 
 const db = admin.firestore();
 
@@ -53,7 +53,7 @@ export const yearRollover = functions.https.onCall(
       throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }
 
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     if (claims.role !== "direction" && claims.role !== "admin") {
       throw new functions.https.HttpsError("permission-denied", "Direction uniquement");
     }
@@ -241,7 +241,7 @@ export const archiveStudent = functions.https.onCall(
       throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }
 
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     if (claims.role !== "direction" && claims.role !== "admin") {
       throw new functions.https.HttpsError("permission-denied", "Direction uniquement");
     }

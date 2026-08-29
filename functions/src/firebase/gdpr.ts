@@ -5,8 +5,8 @@
 
 import * as functions from "firebase-functions/v2";
 import * as admin from "firebase-admin";
-import { CustomClaims } from "../types";
 import { writeAuditLog } from "../utils/audit";
+import { requireClaims } from "../utils/claims";
 
 const db = admin.firestore();
 const auth = admin.auth();
@@ -34,11 +34,11 @@ export const requestDataDeletion = functions.https.onCall(
       throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }
 
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     const callerUid = request.auth.uid;
 
     // Déterminer le uid cible
-    let targetUid = request.data.targetUid ?? callerUid;
+    const targetUid = request.data.targetUid ?? callerUid;
 
     // Seule la direction peut supprimer des comptes tiers
     if (targetUid !== callerUid && claims.role !== "direction") {
@@ -163,7 +163,7 @@ export const exportUserData = functions.https.onCall(
       throw new functions.https.HttpsError("unauthenticated", "Auth required");
     }
 
-    const claims = request.auth.token as CustomClaims;
+    const claims = requireClaims(request.auth.token);
     const callerUid = request.auth.uid;
     const targetUid = request.data.targetUid ?? callerUid;
 

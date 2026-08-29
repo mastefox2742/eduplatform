@@ -4,7 +4,7 @@
 // Normalise les reponses selon le type d'exercice avant correction
 // Gere: QCM, texte libre, calcul mathematique
 
-import { StudentSubmission, ExerciseType } from "../types/ai.types";
+import { StudentSubmission } from "../types/ai.types";
 
 export class ExerciseNormalizer {
 
@@ -106,7 +106,7 @@ export class ExerciseNormalizer {
 
     // Detecter et normaliser les expressions mathematiques courantes
     // 1. Supprimer les espaces autour des operateurs
-    mathText = mathText.replace(/\s*([\+\-\*\/\=\^])\s*/g, "$1");
+    mathText = mathText.replace(/\s*([+\-*/=^])\s*/g, "$1");
 
     // 2. Normaliser la notation decimale (virgule -> point)
     mathText = mathText.replace(/(\d),(\d)/g, "$1.$2");

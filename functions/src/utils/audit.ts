@@ -17,7 +17,8 @@ const db = () => admin.firestore();
 export async function writeAuditLog(params: {
   schoolId: string;
   actorUid: string;
-  actorRole: UserRole;
+  /** `system` pour les traitements automatiques (cascades, taches planifiees). */
+  actorRole: UserRole | "system";
   action: string;
   targetId?: string;
   targetType?: string;

@@ -5,8 +5,14 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "strict": true
+    "strict": true,
+    "skipLibCheck": true,
+    // Requis pour un projet référencé (TS6306/TS6310) : sans `composite`,
+    // `tsc -b` refuse de construire le projet racine.
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./.tsbuild/node",
+    "tsBuildInfoFile": "./.tsbuild/node.tsbuildinfo"
   },
   "include": ["vite.config.ts"]
 }

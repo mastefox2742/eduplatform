@@ -1,8 +1,31 @@
+# deps
 node_modules
+.pnpm-store
+
+# builds
 dist
+lib
+build
 .turbo
+.expo
+.vercel
+
+# env
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
+
+# outils locaux
+.claude/worktrees
+.claude/scheduled_tasks.lock
+
+# medias generes
+*.mp4
+preview-*.png
+screenshots-video/
+
+# divers
 *.log
 .DS_Store
+Thumbs.db
+service-account.json

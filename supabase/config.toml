@@ -37,3 +37,18 @@ enabled = true
 
 [analytics]
 enabled = false
+
+# ── Edge Functions ────────────────────────────────────────────────
+# `verify_jwt = false` uniquement pour le webhook : l'appelant est
+# l'operateur de paiement, pas un utilisateur connecte. Son
+# authentification repose sur une signature HMAC verifiee dans la
+# fonction elle-meme (§22).
+
+[functions.ai-proxy]
+verify_jwt = true
+
+[functions.payment-init]
+verify_jwt = true
+
+[functions.payment-webhook]
+verify_jwt = false

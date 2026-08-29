@@ -6,7 +6,7 @@ import { db } from '@/config/firebase'
 
 export function isFirebaseConfigured(): boolean {
   try {
-    // @ts-ignore — accès interne pour vérifier l'app
+    // Accès à la configuration de l'app Firebase initialisée.
     const projectId: string = db.app.options.projectId ?? ''
     return projectId !== '' && projectId !== 'REPLACE_ME'
   } catch {

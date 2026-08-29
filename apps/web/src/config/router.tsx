@@ -7,6 +7,8 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 import { UnauthorizedPage } from '@/pages/UnauthorizedPage'
 import { UserRole } from '@school/shared-types'
 
+const DesignPage         = lazy(() => import('@/pages/DesignPage').then(m => ({ default: m.DesignPage })))
+const DirectionOverview  = lazy(() => import('@/pages/direction/OverviewPage').then(m => ({ default: m.DirectionOverviewPage })))
 const DirectionDashboard = lazy(() => import('@/pages/direction/DashboardPage').then(m => ({ default: m.DirectionDashboardPage })))
 const TeacherDashboard   = lazy(() => import('@/pages/teacher/DashboardPage').then(m => ({ default: m.TeacherDashboardPage })))
 const StudentsPage       = lazy(() => import('@/pages/direction/StudentsPage').then(m => ({ default: m.StudentsPage })))
@@ -43,6 +45,10 @@ function PageWrapper({ children }: { children: React.ReactNode }) {
 export const router = createBrowserRouter([
   { path: '/login',        element: <LoginPage /> },
   { path: '/unauthorized', element: <UnauthorizedPage /> },
+  // Galerie du design system : publique et sans donnée réelle. Elle sert
+  // de référence partagée entre le développement et la maquette, et permet
+  // de vérifier un composant sans backend ni compte.
+  { path: '/design', element: <PageWrapper><DesignPage /></PageWrapper> },
   { path: '*',             element: <NotFoundPage /> },
   {
     path: '/',
@@ -57,6 +63,14 @@ export const router = createBrowserRouter([
       // Direction
       {
         path: 'direction',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
+            <PageWrapper><DirectionOverview /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'direction/analytics',
         element: (
           <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
             <PageWrapper><DirectionDashboard /></PageWrapper>

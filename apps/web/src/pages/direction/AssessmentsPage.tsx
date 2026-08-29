@@ -1,9 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import {
-  FileText, CheckCircle2, XCircle, Clock, Plus,
-  ChevronDown, Send, Eye, Download, AlertTriangle,
-  BookOpen, BarChart2, Users, Award, Filter
-} from 'lucide-react'
+import { FileText, CheckCircle2, XCircle, Clock, Plus, Eye, AlertTriangle, BookOpen, BarChart2, Users, Award, Filter } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
@@ -628,7 +624,7 @@ export function AssessmentsPage() {
       ) : (
         <>
           {/* Pending approvals banner */}
-          {tab !== 'averages' && filtered.filter(a => a.status === 'submitted').length > 0 && (
+          {filtered.filter(a => a.status === 'submitted').length > 0 && (
             <div className="flex items-center gap-3 px-4 py-3 bg-warning-50 border border-warning-200 rounded-xl">
               <AlertTriangle size={16} className="text-warning-600 flex-shrink-0" />
               <p className="text-sm text-warning-800">

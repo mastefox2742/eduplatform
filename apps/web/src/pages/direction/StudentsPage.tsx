@@ -1,9 +1,5 @@
 import { useState, useMemo } from 'react'
-import {
-  Search, Plus, Download, Upload, Filter,
-  GraduationCap, ChevronRight, MoreVertical,
-  CheckCircle2, XCircle, Clock, Sparkles
-} from 'lucide-react'
+import { Search, Plus, Download, Upload, GraduationCap, ChevronRight, CheckCircle2, XCircle, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
@@ -94,7 +90,9 @@ export function StudentsPage() {
   const [sortBy, setSortBy]             = useState<'name' | 'score' | 'attendance'>('name')
   const [alertOnly, setAlertOnly]       = useState(false)
 
-  const { students, loading, isLive, add: addLive, update: updateLive } = useLiveStudents(DEMO_STUDENTS)
+  // `_loading` et `_updateLive` sont exposes par le hook mais pas encore
+  // cables dans cette page : on les nomme explicitement inutilises.
+  const { students, loading: _loading, isLive, add: addLive, update: _updateLive } = useLiveStudents(DEMO_STUDENTS)
 
   const filtered = useMemo(() => {
     let list = [...students]

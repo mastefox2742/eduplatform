@@ -8,12 +8,9 @@
  */
 import { useState, useEffect, useCallback } from 'react'
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import { getFirestore, collection, onSnapshot, query, orderBy, where, limit } from 'firebase/firestore'
+import { getFirestore, collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore'
 import { useAuthStore } from '@/store/auth.store'
-import {
-  TrendingUp, TrendingDown, AlertTriangle, Plus, DollarSign,
-  BarChart2, PieChart, RefreshCw,
-} from 'lucide-react'
+import { TrendingUp, TrendingDown, AlertTriangle, Plus, DollarSign, BarChart2, PieChart, RefreshCw } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -66,7 +63,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   autre:        'Autre',
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
+// Palette des categories budgetaires, partagee avec les futurs graphiques
+export const CATEGORY_COLORS: Record<string, string> = {
   scolarite:   '#2563EB',
   salaires:    '#7C3AED',
   fournitures: '#059669',

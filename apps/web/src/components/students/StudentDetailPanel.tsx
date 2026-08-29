@@ -1,8 +1,4 @@
-import {
-  X, Mail, Phone, School, Calendar, TrendingUp,
-  BookOpen, CheckCircle2, XCircle, MessageSquare,
-  AlertTriangle, ExternalLink, Clock
-} from 'lucide-react'
+import { X, Mail, Phone, Calendar, TrendingUp, BookOpen, CheckCircle2, MessageSquare, AlertTriangle, Clock } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'

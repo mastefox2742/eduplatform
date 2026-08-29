@@ -1,9 +1,5 @@
 import { useState } from 'react'
-import {
-  TrendingUp, TrendingDown, Users, BookOpen,
-  CheckCircle2, AlertTriangle, Download, Calendar,
-  BarChart2, Award, Clock
-} from 'lucide-react'
+import { TrendingUp, TrendingDown, Users, CheckCircle2, AlertTriangle, Download, Award } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -135,7 +131,6 @@ export function ReportsPage() {
   const [period, setPeriod] = useState<'T1' | 'T2' | 'Année'>('T2')
 
   const overallAvg = +(TRIMESTER_SCORES.reduce((s, c) => s + (c.t2 ?? 0), 0) / TRIMESTER_SCORES.length).toFixed(1)
-  const maxActivity = Math.max(...MONTHLY_ACTIVITY.map(m => m.submissions))
 
   return (
     <div className="px-8 py-8 space-y-6 max-w-6xl">

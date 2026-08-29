@@ -1,9 +1,5 @@
 import { useState, useMemo } from 'react'
-import {
-  Clock, CheckCircle2, XCircle, AlertTriangle,
-  ChevronLeft, ChevronRight, Download, Filter,
-  LogIn, LogOut, Calendar, Users
-} from 'lucide-react'
+import { Clock, CheckCircle2, XCircle, ChevronLeft, ChevronRight, Download, LogIn, LogOut, Calendar } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
@@ -173,7 +169,7 @@ export function TeacherAttendancePage() {
   const generatedRecords = useMemo(() => generateRecords(weekDates), [weekDates])
 
   // ── Firestore live attendance ────────────────────────────────────────────────
-  const { records: liveRecords, isLive, update: liveUpdate } = useLiveAttendance(weekOffset, [])
+  const { records: liveRecords, isLive, update: _liveUpdate } = useLiveAttendance(weekOffset, [])
 
   // Use Firestore records if available, else generated demo records
   const allRecords: AttendanceRecord[] = useMemo(() => {

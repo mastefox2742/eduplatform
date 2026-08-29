@@ -1,8 +1,5 @@
 import { useState, useMemo } from 'react'
-import {
-  Users, TrendingUp, BookOpen, Award, ChevronRight,
-  Search, AlertTriangle, CheckCircle2, Clock, X, BarChart2
-} from 'lucide-react'
+import { Users, BookOpen, ChevronRight, Search, AlertTriangle, Clock, X, BarChart2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'

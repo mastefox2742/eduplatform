@@ -1,8 +1,4 @@
-import {
-  X, Mail, Phone, BookOpen, Calendar,
-  Users, Award, BarChart2, MessageSquare,
-  CheckCircle2, Clock, TrendingUp, Star
-} from 'lucide-react'
+import { X, Mail, Phone, BookOpen, Calendar, Users, BarChart2, MessageSquare, CheckCircle2, Clock, TrendingUp, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'

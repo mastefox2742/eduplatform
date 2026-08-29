@@ -1,10 +1,11 @@
-import { BookOpen, ClipboardList, Users, Sparkles, Clock, ChevronRight } from 'lucide-react'
+import { BookOpen, Users, Sparkles, Clock, ChevronRight } from 'lucide-react'
 import { StatCard, Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
 import { useAuthStore } from '@/store/auth.store'
 import { formatRelativeDate } from '@/lib/utils'
+import { ICONS } from '@/components/ui/Icon'
 
 const DEMO_CLASSES = [
   { id: '1', name: '6ème A', studentCount: 28, avgScore: 13.4, lastActivity: Date.now() - 3600000,  subject: 'Mathématiques' },
@@ -57,22 +58,22 @@ export function TeacherDashboardPage() {
           title="Mes classes"
           value={DEMO_CLASSES.length}
           subtitle={`${DEMO_CLASSES.reduce((s, c) => s + c.studentCount, 0)} élèves au total`}
-          icon={<Users size={22} className="text-primary-600" />}
-          iconBg="bg-primary-50"
+          icon={ICONS.teachers}
+          tone="primary"
         />
         <StatCard
           title="Cours publiés"
           value={DEMO_COURSES.filter((c) => c.status === 'published').length}
           subtitle={`${DEMO_COURSES.filter((c) => c.status === 'draft').length} brouillon(s)`}
-          icon={<BookOpen size={22} className="text-success-600" />}
-          iconBg="bg-success-50"
+          icon={ICONS.courses}
+          tone="secondary"
         />
         <StatCard
           title="À corriger"
           value={DEMO_PENDING.length}
           subtitle="Exercices en attente"
-          icon={<ClipboardList size={22} className="text-warning-600" />}
-          iconBg="bg-warning-50"
+          icon={ICONS.checklist}
+          tone="accent"
         />
       </div>
 

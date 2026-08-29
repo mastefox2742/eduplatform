@@ -1,10 +1,5 @@
 import { useState } from 'react'
-import {
-  GraduationCap, FileText, CheckCircle2, AlertCircle,
-  ExternalLink, Download, Search, ChevronRight,
-  BookOpen, Award, ClipboardList, Users, Printer,
-  Clock, Info
-} from 'lucide-react'
+import { GraduationCap, FileText, CheckCircle2, AlertCircle, ExternalLink, Download, Search, Award, Users, Printer, Clock, Info } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'

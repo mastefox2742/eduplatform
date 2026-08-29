@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Plus, ChevronLeft, ChevronRight, Download, Filter } from 'lucide-react'
+import { Plus, Download, Filter } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SeedBanner, LiveBadge } from '@/components/ui/SeedBanner'
 import { useLiveSchedule } from '@/hooks/useLiveSchedule'
@@ -105,7 +105,7 @@ function timeToRow(time: string): number {
   return (h - 8) * 2 + Math.round(m / 30) // 30min slots
 }
 
-function SlotCard({ slot, compact = false }: { slot: ScheduleSlot; compact?: boolean }) {
+function SlotCard({ slot }: { slot: ScheduleSlot; compact?: boolean }) {
   const startRow = timeToRow(slot.startTime) + 1
   const endRow   = timeToRow(slot.endTime) + 1
   const span     = endRow - startRow
@@ -161,13 +161,6 @@ export function SchedulePage() {
     filtered.forEach(s => map[s.day].push(s))
     return map
   }, [filtered])
-
-  const counts = {
-    cours:  slots.filter(s => s.type === 'cours').length,
-    td:     slots.filter(s => s.type === 'td').length,
-    examen: slots.filter(s => s.type === 'examen').length,
-    total:  slots.length,
-  }
 
   return (
     <div className="px-8 py-8 space-y-5 max-w-full">
@@ -248,7 +241,7 @@ export function SchedulePage() {
           <div className="grid" style={{ gridTemplateColumns: '60px repeat(5, 1fr)' }}>
             {/* Time labels */}
             <div className="border-r border-gray-100">
-              {HOURS.map((h, i) => (
+              {HOURS.map((h) => (
                 <div key={h} style={{ height: '60px' }}
                   className="border-b border-gray-50 flex items-start justify-end pr-2 pt-1">
                   <span className="text-xs text-gray-400">{h}</span>
@@ -260,7 +253,7 @@ export function SchedulePage() {
             {([0, 1, 2, 3, 4] as const).map(day => (
               <div key={day} className="relative border-r border-gray-50">
                 {/* Hour lines */}
-                {HOURS.map((h, i) => (
+                {HOURS.map((h) => (
                   <div key={h} style={{ height: '60px' }} className="border-b border-gray-50" />
                 ))}
                 {/* 30-min lines */}

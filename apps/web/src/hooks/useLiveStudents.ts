@@ -94,6 +94,10 @@ export function useLiveStudents(fallbackDemo: Student[]): UseLiveStudentsResult 
         schoolId, isActive: true, levelId: s.levelId, levelName: s.levelName,
         classId: s.classId, className: s.className, studentNumber: s.studentNumber,
         parentEmail: s.parentEmail,
+        // Cycle de vie eleve (§7.2) : tout nouveau dossier demarre actif,
+        // avec un historique academique vide.
+        archiveStatus: 'active',
+        academicHistory: [],
       }).catch(console.error)
     }
   }, [schoolId, isLive])

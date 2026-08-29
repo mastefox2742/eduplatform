@@ -1,9 +1,10 @@
-import { Users, GraduationCap, BookOpen, TrendingUp, AlertCircle, CheckCircle2, Clock } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock } from 'lucide-react'
 import { StatCard, Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
 import { useAuthStore } from '@/store/auth.store'
 import { formatRelativeDate } from '@/lib/utils'
+import { ICONS } from '@/components/ui/Icon'
 
 // Données de démonstration — à remplacer par des hooks Firebase
 const DEMO_STATS = {
@@ -72,30 +73,30 @@ export function DirectionDashboardPage() {
           title="Élèves inscrits"
           value={DEMO_STATS.totalStudents}
           subtitle={`${DEMO_STATS.presentToday} présents aujourd'hui`}
-          icon={<GraduationCap size={22} className="text-primary-600" />}
-          iconBg="bg-primary-50"
+          icon={ICONS.students}
+          tone="primary"
           trend={{ value: 3.2, label: 'vs mois dernier' }}
         />
         <StatCard
           title="Professeurs"
           value={DEMO_STATS.totalTeachers}
           subtitle="Tous actifs"
-          icon={<Users size={22} className="text-purple-600" />}
-          iconBg="bg-purple-50"
+          icon={ICONS.teachers}
+          tone="primary"
         />
         <StatCard
           title="Cours publiés"
           value={DEMO_STATS.totalCourses}
           subtitle={`Taux de complétion : ${DEMO_STATS.completionRate}%`}
-          icon={<BookOpen size={22} className="text-success-600" />}
-          iconBg="bg-success-50"
+          icon={ICONS.courses}
+          tone="secondary"
         />
         <StatCard
           title="Moyenne générale"
           value={`${DEMO_STATS.avgScore}/20`}
           subtitle="Tous niveaux confondus"
-          icon={<TrendingUp size={22} className="text-warning-600" />}
-          iconBg="bg-warning-50"
+          icon={ICONS.trend}
+          tone="accent"
           trend={{ value: 0.4, label: 'vs trimestre 1' }}
         />
       </div>

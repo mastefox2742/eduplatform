@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { ChevronDown, ChevronUp, Download, Filter, Search, TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react'
+import { Download, Search, TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react'
 
 type Trimester = 1 | 2 | 3
 
@@ -173,7 +173,7 @@ export function TeacherGradebookPage() {
     })
     return m
   })
-  const [expandedStudent, setExpandedStudent] = useState<string | null>(null)
+  const [_expandedStudent, _setExpandedStudent] = useState<string | null>(null)
 
   const students = useMemo(() =>
     STUDENTS.filter(s => s.classId === classId && s.name.toLowerCase().includes(search.toLowerCase())),

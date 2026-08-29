@@ -4,11 +4,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { FIREBASE_READY } from '@/services/firebase.config'
 import { useSchoolId } from './useSchool'
-import {
-  subscribeAttendanceByWeek,
-  addAttendanceRecord, updateAttendanceRecord,
-  markPresent, justifyAbsence,
-} from '@/services/attendance.service'
+import { subscribeAttendanceByWeek, updateAttendanceRecord, markPresent, justifyAbsence } from '@/services/attendance.service'
 import { getWeekRange } from './useAttendance'
 import type { TeacherAttendanceRecord } from '@school/shared-types'
 

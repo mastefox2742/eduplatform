@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Clock, MapPin, Users, ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { MapPin, Users, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils'
@@ -54,7 +54,6 @@ function timeToOffset(time: string): number {
   return (h - 8) * 60 + m // minutes since 08:00
 }
 
-const TOTAL_MINUTES = 9 * 60 // 08:00 → 17:00
 
 // ── Week stats ────────────────────────────────────────────────────────────────
 

@@ -2,12 +2,7 @@
  * Helpers Firestore génériques — wrappent les SDK calls avec gestion d'erreur
  * et timestamps automatiques.
  */
-import {
-  collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  onSnapshot, query, where, orderBy, limit, serverTimestamp,
-  type Query, type CollectionReference, type WhereFilterOp,
-  type DocumentData, type QueryConstraint, Timestamp,
-} from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, limit, type Query, type CollectionReference, type DocumentData, type QueryConstraint, Timestamp } from 'firebase/firestore'
 import { db } from '@/config/firebase'
 
 // ─── Path helpers ────────────────────────────────────────────────────────────

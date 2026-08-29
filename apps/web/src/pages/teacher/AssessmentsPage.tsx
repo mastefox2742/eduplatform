@@ -1,8 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import {
-  Plus, FileText, CheckCircle2, XCircle, Clock,
-  Send, Upload, Eye, BookOpen, Award, AlertTriangle, X
-} from 'lucide-react'
+import { Plus, FileText, XCircle, Send, Upload, BookOpen, Award, AlertTriangle, X } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -269,7 +266,7 @@ export function TeacherAssessmentsPage() {
   const [tab, setTab]           = useState<'all' | AssessmentStatus>('all')
 
   // ── Firestore live data ─────────────────────────────────────────────────────
-  const { assessments: liveItems, isLive, submit: liveSubmit, add: liveAdd } =
+  const { assessments: liveItems, isLive, submit: _liveSubmit, add: _liveAdd } =
     useLiveTeacherAssessments(teacherId, [])
 
   useEffect(() => {

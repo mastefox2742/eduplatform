@@ -7,22 +7,19 @@
  *   await seedDemoData('demo-school')
  */
 
-import { doc, setDoc, writeBatch, collection } from 'firebase/firestore'
+import { doc, writeBatch } from 'firebase/firestore'
 import { signInAnonymously } from 'firebase/auth'
 import { db, auth } from '@/config/firebase'
 import { withTimestamps } from './db'
-import type {
-  StudentMember, TeacherMember, SchoolClass,
-  Assessment, TeacherAttendanceRecord, ScheduleSlot,
-  UserProfile,
-} from '@school/shared-types'
+import type { StudentMember, TeacherMember, SchoolClass, Assessment, TeacherAttendanceRecord, ScheduleSlot, UserProfile } from '@school/shared-types'
 import { UserRole } from '@school/shared-types'
 
 const SCHOOL_ID = 'demo-school'
 
 // ─── Demo Users ───────────────────────────────────────────────────────────────
 
-const DEMO_USERS: UserProfile[] = [
+// Comptes de demonstration, consommes par scripts/setup-demo-users.mjs
+export const DEMO_USERS: UserProfile[] = [
   {
     id: 'user-direction-1',
     email: 'direction@demo.fr',
@@ -96,6 +93,8 @@ function makeStudents(): (StudentMember & { id: string })[] {
       levelId,
       levelName,
       studentNumber: `STU${String(idx).padStart(4, '0')}`,
+      archiveStatus: 'active' as const,
+      academicHistory: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     }))

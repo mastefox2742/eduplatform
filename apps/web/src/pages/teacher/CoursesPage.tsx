@@ -1,10 +1,5 @@
 import { useState, useMemo } from 'react'
-import {
-  Plus, BookOpen, Eye, Edit3, Trash2, Copy,
-  ChevronDown, ChevronUp, GripVertical, X,
-  FileText, Video, HelpCircle, CheckCircle2,
-  Users, Clock, BarChart2, Send, Save, ArrowLeft
-} from 'lucide-react'
+import { Plus, BookOpen, Eye, Edit3, Trash2, ChevronDown, ChevronUp, GripVertical, FileText, Video, HelpCircle, Users, BarChart2, Send, Save, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'

@@ -346,7 +346,7 @@ function ExerciseBuilder({ initial, onBack }: { initial?: Exercise; onBack: () =
 
   const totalPoints = questions.reduce((s, q) => s + q.points, 0)
 
-  function handleSave(status: 'draft' | 'published') {
+  function handleSave(_status: 'draft' | 'published') {
     setSaved(true)
     setTimeout(() => { setSaved(false); onBack() }, 800)
   }
@@ -535,7 +535,7 @@ function ExerciseCard({ ex, onEdit }: { ex: Exercise; onEdit: () => void }) {
 export function TeacherExercisesPage() {
   const [view, setView] = useState<'list' | 'builder'>('list')
   const [editing, setEditing]   = useState<Exercise | undefined>()
-  const [exercises, setExercises] = useState<Exercise[]>(DEMO_EXERCISES)
+  const [exercises, _setExercises] = useState<Exercise[]>(DEMO_EXERCISES)
   const [filter, setFilter] = useState<'all' | ExerciseStatus>('all')
 
   const counts = {

@@ -4,7 +4,7 @@ import {
   addDocument, updateDocument, deleteDocument,
   getDocuments, subscribeToQuery,
 } from './db'
-import type { ScheduleSlot, DayOfWeek, SlotType, CreateInput, UpdateInput } from '@school/shared-types'
+import type { ScheduleSlot, SlotType, CreateInput, UpdateInput } from '@school/shared-types'
 
 export type SlotCreate = CreateInput<ScheduleSlot>
 export type SlotUpdate = UpdateInput<ScheduleSlot>

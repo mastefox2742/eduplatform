@@ -1,9 +1,5 @@
 import { useState, useMemo } from 'react'
-import {
-  Search, Plus, Download, Upload,
-  MoreVertical, BookOpen, Users, Star,
-  AlertCircle, ChevronUp, ChevronDown,
-} from 'lucide-react'
+import { Search, Plus, Download, Upload, MoreVertical, BookOpen, Users, Star, AlertCircle, ChevronUp, ChevronDown } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
@@ -168,13 +164,7 @@ export function TeachersPage() {
   const [selected, setSelected]       = useState<Teacher | null>(null)
   const [showAddModal, setShowAdd]    = useState(false)
 
-  const { teachers, loading, isLive, add: addLive } = useLiveTeachers(DEMO_TEACHERS)
-
-  const allSubjects = useMemo(() => {
-    const s = new Set<string>()
-    teachers.forEach(t => t.subjects.forEach(sub => s.add(sub)))
-    return ['Tous', ...Array.from(s).sort()]
-  }, [teachers])
+  const { teachers, loading: _loading, isLive, add: addLive } = useLiveTeachers(DEMO_TEACHERS)
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')

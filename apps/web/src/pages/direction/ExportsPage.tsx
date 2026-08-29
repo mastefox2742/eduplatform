@@ -5,13 +5,10 @@
  * les documents officiels demandés par le Ministère.
  */
 import { useState, useEffect } from 'react'
-import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'firebase/functions'
-import { getFirestore, collection, onSnapshot, query, where, orderBy, limit } from 'firebase/firestore'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import { getFirestore, collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore'
 import { useAuthStore } from '@/store/auth.store'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Badge } from '@/components/ui/Badge'
-import { Download, FileSpreadsheet, FileText, Clock, CheckCircle2, AlertCircle, RefreshCw, Eye } from 'lucide-react'
+import { Download, FileSpreadsheet, FileText, Clock, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

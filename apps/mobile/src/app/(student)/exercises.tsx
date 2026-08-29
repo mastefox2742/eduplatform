@@ -299,7 +299,7 @@ function SubmissionPanel({
 // ── Modal exercice ────────────────────────────────────────────────────────────
 
 function ExerciseModal({
-  exercise, onClose, onUpdate,
+  exercise, onClose, onUpdate, onFinishQuiz,
 }: {
   exercise: Exercise | null
   onClose: () => void

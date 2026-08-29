@@ -215,7 +215,7 @@ export default function TeacherBulletinScreen() {
     } finally {
       setAiLoading(false)
     }
-  }, [modalStudent, editConduct, trimestre, schoolId, cls])
+  }, [modalStudent, editConduct, trimestre, schoolId, classes, classIdx])
 
   const cls     = classes[classIdx]
   const ranks   = useMemo(() => classRanks(cls.students), [cls.students])

@@ -1,88 +1,143 @@
 /**
- * useActiveChild — Gestion du profil enfant actif (multi-enfants)
+ * useActiveChild — l'enfant dont le parent consulte le dossier.
  *
- * Un parent peut avoir plusieurs enfants dans la même école ou
- * dans des écoles différentes utilisant EduSchool.
- * Ce hook persiste le choix dans AsyncStorage et expose :
- *   - activeChild : l'enfant sélectionné (ChildRef)
- *   - children    : tous les enfants du parent
- *   - setActive   : changer d'enfant
+ * Cahier des charges §16.1, §26.
+ *
+ * La liste vient désormais de `student_guardians`, pas de
+ * `profiles.children` (JSONB déprécié). Ce n'est pas un détail
+ * d'implémentation : un tableau JSON ne porte aucune contrainte, si
+ * bien qu'un rattachement erroné exposait le dossier d'un enfant à la
+ * mauvaise famille.
+ *
+ * Le hook n'applique **aucun filtre de son côté** : RLS ne renvoie que
+ * les enfants auxquels ce parent est explicitement rattaché — c'est le
+ * critère d'acceptation §26.
  */
 import { useState, useEffect, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { supabase } from '@/config/supabase'
 import { useAuth } from './useAuth'
-import type { ChildRef } from '@school/shared-types'
 
-const STORAGE_KEY = '@eduschool:active_child_id'
+const STORAGE_KEY = '@projetto1:active_child_id'
 
-// Construire la liste des enfants depuis le profil parent
-function extractChildren(profile: any): ChildRef[] {
-  if (!profile) return []
-
-  // Cas 1 : profile.children[] (ParentProfile complet)
-  if (Array.isArray(profile.children) && profile.children.length > 0) {
-    return profile.children as ChildRef[]
-  }
-
-  // Cas 2 : profile.studentId / childId (parent avec un seul enfant)
-  const studentId = profile.studentId ?? profile.childId
-  if (studentId) {
-    return [{
-      studentId,
-      name:      profile.childName   ?? 'Mon enfant',
-      className: profile.childClass  ?? '',
-      schoolId:  profile.schoolId    ?? '',
-      levelName: profile.childLevel  ?? '',
-    }]
-  }
-
-  // Cas 3 : l'utilisateur EST l'élève (rôle student)
-  if (profile.role === 'student') {
-    return [{
-      studentId:  profile.id ?? '',
-      name:       profile.displayName ?? 'Moi',
-      className:  profile.className   ?? '',
-      schoolId:   profile.schoolId    ?? '',
-      levelName:  profile.levelName   ?? '',
-    }]
-  }
-
-  return []
+export interface ChildRef {
+  studentId: string
+  name: string
+  className: string
+  levelName: string
+  schoolId: string
+  photoUrl: string | null
+  /** Ce parent est-il le responsable financier de cet enfant ? */
+  isFinancial: boolean
+  relation: string
 }
 
 export function useActiveChild() {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
+  const [children, setChildren] = useState<ChildRef[]>([])
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const children = extractChildren(profile)
+  const userId = user?.id ?? null
 
-  const [activeChildId, setActiveChildId] = useState<string>(
-    children[0]?.studentId ?? ''
-  )
+  const load = useCallback(async () => {
+    if (!userId) {
+      setChildren([])
+      setIsLoading(false)
+      return
+    }
 
-  // Charger le dernier enfant actif depuis AsyncStorage
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then(saved => {
-      if (saved && children.some(c => c.studentId === saved)) {
-        setActiveChildId(saved)
-      } else if (children.length > 0) {
-        setActiveChildId(children[0].studentId)
-      }
-    })
-  }, [profile?.id])
+    // Cas de l'élève lui-même : il n'a pas de « liste d'enfants »,
+    // mais les écrans partagés attendent la même forme.
+    if (profile?.role === 'student' || profile?.role === 'eleve') {
+      setChildren([{
+        studentId: userId,
+        name: profile.displayName ?? 'Moi',
+        className: profile.className ?? '',
+        levelName: profile.levelName ?? '',
+        schoolId: profile.schoolId ?? '',
+        photoUrl: profile.photoUrl ?? null,
+        isFinancial: false,
+        relation: 'self',
+      }])
+      setActiveId(userId)
+      setIsLoading(false)
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('student_guardians')
+      .select(`
+        student_id, is_financial, relation, school_id,
+        profiles!student_guardians_student_id_fkey (
+          display_name, photo_url, class_name, level_name
+        )
+      `)
+      .eq('guardian_id', userId)
+
+    if (error) {
+      setChildren([])
+      setIsLoading(false)
+      return
+    }
+
+    const rows = (data ?? []) as unknown as Array<{
+      student_id: string
+      is_financial: boolean
+      relation: string
+      school_id: string
+      profiles: {
+        display_name: string | null
+        photo_url: string | null
+        class_name: string | null
+        level_name: string | null
+      } | null
+    }>
+
+    const list: ChildRef[] = rows.map((r) => ({
+      studentId: r.student_id,
+      name: r.profiles?.display_name ?? 'Mon enfant',
+      className: r.profiles?.class_name ?? '',
+      levelName: r.profiles?.level_name ?? '',
+      schoolId: r.school_id,
+      photoUrl: r.profiles?.photo_url ?? null,
+      isFinancial: r.is_financial,
+      relation: r.relation,
+    }))
+
+    setChildren(list)
+
+    // Restaure le dernier enfant consulté, s'il est toujours rattaché.
+    const stored = await AsyncStorage.getItem(STORAGE_KEY)
+    const valid = stored && list.some((c) => c.studentId === stored)
+    setActiveId(valid ? stored : list[0]?.studentId ?? null)
+    setIsLoading(false)
+  }, [userId, profile?.role, profile?.displayName, profile?.className,
+      profile?.levelName, profile?.schoolId, profile?.photoUrl])
+
+  useEffect(() => { void load() }, [load])
 
   const setActive = useCallback(async (studentId: string) => {
-    setActiveChildId(studentId)
+    // On refuse un enfant hors de la liste : RLS bloquerait de toute
+    // façon les requêtes, mais l'écran afficherait un vide inexplicable.
+    if (!children.some((c) => c.studentId === studentId)) return
+    setActiveId(studentId)
     await AsyncStorage.setItem(STORAGE_KEY, studentId)
-  }, [])
+  }, [children])
 
-  const activeChild = children.find(c => c.studentId === activeChildId) ?? children[0] ?? null
+  const activeChild = children.find((c) => c.studentId === activeId) ?? null
 
   return {
     children,
     activeChild,
-    activeChildId: activeChild?.studentId ?? '',
-    activeSchoolId: activeChild?.schoolId ?? profile?.schoolId ?? 'demo',
+    /** École de l'enfant consulté : les enfants d'une même famille
+     *  peuvent être scolarisés dans deux établissements du réseau. */
+    activeSchoolId: activeChild?.schoolId ?? null,
+    activeId,
     setActive,
-    hasMultipleChildren: children.length > 1,
+    isLoading,
+    /** Le sélecteur d'enfant n'a de sens qu'au-delà d'un enfant. */
+    hasMultiple: children.length > 1,
+    reload: load,
   }
 }

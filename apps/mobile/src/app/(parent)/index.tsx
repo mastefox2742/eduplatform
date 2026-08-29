@@ -1,322 +1,676 @@
-import { useMemo, useState } from 'react'
+/**
+ * Accueil parent.
+ * Repris de la maquette `design/maquettes/parent---dashboard.html`.
+ *
+ * Cahier des charges §16.1, §16.2, §16.3, §26.
+ *
+ * Le parent veut savoir trois choses : mon enfant travaille-t-il bien,
+ * est-il assidu, et est-ce que je dois de l'argent. L'écran répond
+ * dans cet ordre, et met le solde en tête quand il y en a un — c'est
+ * ce qui déclenche l'action.
+ *
+ * Le sélecteur d'enfant n'est pas cosmétique : il matérialise
+ * `is_my_child()`. Un parent ne bascule qu'entre les enfants auxquels
+ * il est explicitement rattaché (§26).
+ */
+import { useState } from 'react'
 import {
-  ScrollView, View, Text, StyleSheet,
-  TouchableOpacity, StatusBar, Modal, TextInput, ActivityIndicator, Alert,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  Image, ActivityIndicator, RefreshControl,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useAuth } from '@/hooks/useAuth'
-import { BurgerMenu } from '@/components/ui/BurgerMenu'
-import { spacing, radius, fontSize, fontWeight, shadow, useTheme } from '@/theme'
-import { getFunctions, httpsCallable } from 'firebase/functions'
+import { router } from 'expo-router'
+import { colors, spacing, radius, fontSize, fontWeight, fontFamily, shadow } from '@/theme'
+import { useParentDashboard } from '@/hooks/useParentDashboard'
+import { formatAmount } from '@/hooks/useInvoicePayment'
+import { subjectTag, dueLabel } from '@/hooks/useStudentDashboard'
+import { EmptyState } from '@/components/ui/DesignSystem'
+import { BottomNav, PARENT_TABS } from '@/components/ui/BottomNav'
+
+function initials(name: string): string {
+  return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase()
+}
+
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+}
+
+// ── Écran ─────────────────────────────────────────────────────────────────────
 
 export default function ParentHomeScreen() {
-  const { profile } = useAuth()
-  const { colors, isDark } = useTheme()
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark])
+  const {
+    children, activeChild, hasMultiple, setActive,
+    average, averageTrend, rank, classSize, periodLabel,
+    attendanceRate, unjustifiedAbsences, lateCount,
+    dues, totalDue, upcoming, grades,
+    bulletinAvailable, isLoading, error, reload,
+  } = useParentDashboard()
 
-  const fullName  = profile?.displayName ?? 'Parent'
-  const initials  = fullName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-  const hour      = new Date().getHours()
-  const greeting  = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
+  const [refreshing, setRefreshing] = useState(false)
 
-  // Payment State
-  const [showPayModal, setShowPayModal] = useState(false)
-  const [network, setNetwork] = useState<'MTN' | 'AIRTEL'>('MTN')
-  const [phone, setPhone] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [feeStatus, setFeeStatus] = useState<'UNPAID' | 'PENDING' | 'PAID'>('UNPAID')
+  const nextDue = dues[0] ?? null
 
-  const handlePayment = async () => {
-    if (phone.length < 9) {
-      Alert.alert('Erreur', 'Veuillez entrer un numéro de téléphone valide.')
-      return
-    }
+  if (isLoading) {
+    return (
+      <SafeAreaView style={s.screen} edges={['top']}>
+        <View style={s.center}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={s.centerText}>Chargement du suivi…</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
 
-    setLoading(true)
-    try {
-      const functions = getFunctions()
-      const initPayment = httpsCallable(functions, 'initializePayment')
-      
-      const result = await initPayment({
-        feeId: 'fee-123',
-        amount: 50000,
-        phoneNumber: phone,
-        network: network,
-        schoolId: 'demo-school'
-      })
-
-      const data = result.data as any
-      if (data.success) {
-        setFeeStatus('PENDING')
-        setShowPayModal(false)
-        Alert.alert(
-          'Veuillez confirmer sur votre téléphone',
-          data.message || 'Un menu USSD a été envoyé sur votre téléphone. Veuillez entrer votre code PIN pour valider le paiement.'
-        )
-        
-        // Simuler le succès après 5 secondes (Normalement géré par le Webhook)
-        setTimeout(() => {
-          setFeeStatus('PAID')
-          Alert.alert('✅ Paiement Reçu', 'Votre paiement de 50 000 FCFA a été validé avec succès par l\'opérateur !')
-        }, 8000)
-      }
-    } catch (error: any) {
-      Alert.alert('Erreur', error.message || 'Impossible d\'initialiser le paiement.')
-    } finally {
-      setLoading(false)
-    }
+  if (!activeChild) {
+    return (
+      <SafeAreaView style={s.screen} edges={['top']}>
+        <EmptyState
+          icon="school-outline"
+          title="Aucun enfant rattaché"
+          detail="Votre compte n’est rattaché à aucun élève. Contactez le secrétariat de l’établissement."
+        />
+      </SafeAreaView>
+    )
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.surface} />
+    <SafeAreaView style={s.screen} edges={['top']}>
+      {/* ── Sélecteur d'enfant ──────────────────────────────────── */}
+      <View style={s.header}>
+        <Text style={s.headerLabel}>
+          {hasMultiple ? 'Sélectionnez votre enfant' : 'Espace Parent'}
+        </Text>
 
-      {/* ── Barre de navigation ──────────────────────── */}
-      <View style={styles.topBar}>
-        <View style={styles.topLeft}>
-          <View style={styles.schoolLogo}>
-            <Ionicons name="school" size={20} color={colors.white} />
-          </View>
-          <View>
-            <Text style={styles.schoolName}>EduPlatform</Text>
-            <Text style={styles.schoolSub}>Espace Parent</Text>
-          </View>
-        </View>
-        <View style={styles.topRight}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="notifications-outline" size={22} color={colors.gray[700]} />
-            <View style={styles.notifDot} />
-          </TouchableOpacity>
-          <BurgerMenu iconColor={colors.gray[700]} />
-        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.childRail}
+        >
+          {children.map((c) => {
+            const active = c.studentId === activeChild.studentId
+            return (
+              <TouchableOpacity
+                key={c.studentId}
+                activeOpacity={0.85}
+                onPress={() => void setActive(c.studentId)}
+                style={[s.childCard, active && s.childCardActive]}
+              >
+                {c.photoUrl ? (
+                  <Image source={{ uri: c.photoUrl }} style={s.childAvatar} />
+                ) : (
+                  <View style={[s.childAvatar, s.childAvatarFallback]}>
+                    <Text style={[s.childInitials, active && { color: colors.white }]}>
+                      {initials(c.name)}
+                    </Text>
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[s.childName, active && { color: colors.white }]}
+                    numberOfLines={1}
+                  >
+                    {c.name}
+                  </Text>
+                  <Text
+                    style={[s.childClass, active && { color: 'rgba(255,255,255,0.85)' }]}
+                    numberOfLines={1}
+                  >
+                    {c.className || c.levelName || '—'}
+                    {periodLabel && active ? ` · ${periodLabel}` : ''}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )
+          })}
+        </ScrollView>
       </View>
 
-      <View style={styles.divider} />
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-
-        {/* ── Bienvenue ────────────────────────────────── */}
-        <View style={styles.welcomeSection}>
-          <View style={styles.welcomeLeft}>
-            <Text style={styles.greetingText}>{greeting},</Text>
-            <Text style={styles.welcomeName}>{fullName}</Text>
+      <ScrollView
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true)
+              await reload()
+              setRefreshing(false)
+            }}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {error && (
+          <View style={s.errorBanner}>
+            <Ionicons name="close-circle" size={16} color={colors.danger} />
+            <Text style={s.errorText}>{error}</Text>
           </View>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitials}>{initials}</Text>
+        )}
+
+        {/* ── Solde à régler ──────────────────────────────────────── */}
+        {/* En tête quand il y en a un : c'est ce qui déclenche l'action. */}
+        {nextDue && (
+          <View style={[s.dueCard, nextDue.isOverdue && s.dueCardOverdue]}>
+            <View style={s.dueTop}>
+              <View style={s.dueTag}>
+                <Text style={s.dueTagText}>
+                  {nextDue.isOverdue
+                    ? `En retard de ${Math.abs(nextDue.daysLeft)}j`
+                    : `Échéance ${shortDate(nextDue.dueDate)}`}
+                </Text>
+              </View>
+              <Ionicons name="wallet-outline" size={20} color="rgba(255,255,255,0.6)" />
+            </View>
+
+            <Text style={s.dueTitle}>Frais de scolarité en attente</Text>
+            <Text style={s.dueSub} numberOfLines={1}>
+              {activeChild.name} · {nextDue.label ?? 'Scolarité'}
+            </Text>
+
+            <View style={s.dueBottom}>
+              <View>
+                <Text style={s.dueAmountLabel}>Reste à payer</Text>
+                <Text style={s.dueAmount}>
+                  {formatAmount(totalDue, nextDue.currency)}
+                </Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push(`/(parent)/paiement?installmentId=${nextDue.id}` as never)
+                }
+                style={s.dueBtn}
+              >
+                <Text style={s.dueBtnText}>Payer</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={s.dueMethods}>MTN MoMo, Airtel Money, CinetPay</Text>
+          </View>
+        )}
+
+        {/* ── Situation académique ────────────────────────────────── */}
+        <View>
+          <View style={s.sectionHead}>
+            <Text style={s.sectionTitle}>Situation académique & assiduité</Text>
+            {periodLabel && <Text style={s.periodTag}>{periodLabel}</Text>}
+          </View>
+
+          {average == null ? (
+            <View style={s.pendingCard}>
+              <Ionicons name="hourglass-outline" size={18} color={colors.mutedText} />
+              <Text style={s.pendingText}>
+                Les résultats seront visibles dès la publication du bulletin
+                par la direction.
+              </Text>
+            </View>
+          ) : (
+            <View style={s.statRow}>
+              <View style={s.statCard}>
+                <View style={s.statTop}>
+                  <Text style={s.statValue}>{average.toFixed(2)}</Text>
+                  <Text style={s.statMax}>/20</Text>
+                  {averageTrend != null && averageTrend !== 0 && (
+                    <Text
+                      style={[
+                        s.trend,
+                        { color: averageTrend > 0 ? colors.secondary : colors.danger },
+                      ]}
+                    >
+                      {averageTrend > 0 ? '+' : ''}{averageTrend.toFixed(1)}
+                    </Text>
+                  )}
+                </View>
+                <Text style={s.statLabel}>Moyenne générale</Text>
+              </View>
+
+              {rank != null && classSize != null && (
+                <View style={s.statCard}>
+                  <View style={s.statTop}>
+                    <Text style={s.statValue}>{rank}</Text>
+                    <Text style={s.statMax}>e</Text>
+                  </View>
+                  <Text style={s.statLabel}>Rang · sur {classSize}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          <View style={s.attendanceCard}>
+            <View style={s.attendanceLeft}>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={19}
+                color={attendanceRate != null && attendanceRate >= 90
+                  ? colors.secondary : '#A96A0C'}
+              />
+              <Text style={s.attendanceMain}>
+                {attendanceRate != null ? `Assiduité ${attendanceRate} %` : 'Assiduité à venir'}
+              </Text>
+            </View>
+            <Text style={s.attendanceDetail}>
+              {unjustifiedAbsences} non just. · {lateCount} retard{lateCount > 1 ? 's' : ''}
+            </Text>
           </View>
         </View>
 
-        {/* ── Enfant ─────────────────────────────── */}
-        <View style={styles.sectionWrap}>
-          <Text style={styles.sectionTitle}>Votre enfant</Text>
-          <View style={styles.childCard}>
-            <View style={styles.childAvatar}>
-              <Ionicons name="person" size={24} color={colors.white} />
+        {/* ── Devoirs à venir ─────────────────────────────────────── */}
+        <View>
+          <View style={s.sectionHead}>
+            <Text style={s.sectionTitle}>Devoirs & évaluations à venir</Text>
+            {upcoming.length > 0 && (
+              <TouchableOpacity onPress={() => router.push('/(parent)/child')}>
+                <Text style={s.sectionAction}>Voir tout ({upcoming.length})</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {upcoming.length === 0 ? (
+            <EmptyState
+              icon="calendar-outline"
+              title="Rien de prévu"
+              detail="Aucun devoir annoncé pour les prochains jours."
+            />
+          ) : (
+            <View style={{ gap: spacing.sm }}>
+              {upcoming.map((w) => (
+                <View key={w.id} style={s.workRow}>
+                  <View style={s.dateBox}>
+                    <Text style={s.dateMonth}>
+                      {new Date(w.dueDate).toLocaleDateString('fr-FR', { month: 'short' }).toUpperCase()}
+                    </Text>
+                    <Text style={s.dateDay}>{new Date(w.dueDate).getDate()}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.workTitle} numberOfLines={1}>{w.title}</Text>
+                    <Text style={s.workMeta} numberOfLines={1}>
+                      {w.subjectName ?? '—'}
+                      {w.teacherName ? ` · ${w.teacherName}` : ''}
+                    </Text>
+                  </View>
+                  {w.isSubmitted ? (
+                    <View style={s.doneTag}>
+                      <Ionicons name="checkmark" size={12} color={colors.secondary} />
+                      <Text style={s.doneTagText}>Rendu</Text>
+                    </View>
+                  ) : (
+                    <Text
+                      style={[
+                        s.workDue,
+                        w.daysLeft <= 1 && { color: colors.danger },
+                      ]}
+                    >
+                      {dueLabel(w.daysLeft, null)}
+                    </Text>
+                  )}
+                </View>
+              ))}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.childName}>Élève Démo</Text>
-              <Text style={styles.childClass}>Classe: 3ème B</Text>
+          )}
+        </View>
+
+        {/* ── Dernières notes ─────────────────────────────────────── */}
+        {grades.length > 0 && (
+          <View>
+            <View style={s.sectionHead}>
+              <Text style={s.sectionTitle}>Dernières notes enregistrées</Text>
+              {bulletinAvailable && (
+                <TouchableOpacity onPress={() => router.push('/(parent)/child')}>
+                  <Text style={s.sectionAction}>Télécharger bulletin</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            <TouchableOpacity style={styles.childAction}>
-              <Text style={styles.childActionText}>Voir Profil</Text>
+
+            <View style={{ gap: spacing.sm }}>
+              {grades.map((g) => {
+                const on20 = (g.score / g.maxScore) * 20
+                const tone = on20 >= 14 ? colors.secondary
+                  : on20 >= 10 ? colors.text : colors.danger
+
+                return (
+                  <View key={g.id} style={s.gradeRow}>
+                    <View style={s.subjectTag}>
+                      <Text style={s.subjectTagText}>{subjectTag(g.subjectName)}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.gradeTitle} numberOfLines={1}>{g.title}</Text>
+                      <Text style={s.gradeMeta} numberOfLines={1}>
+                        {shortDate(g.date)} · Coeff. {g.coefficient}
+                      </Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={[s.gradeScore, { color: tone }]}>
+                        {g.score}/{g.maxScore}
+                      </Text>
+                      {g.classAverage != null && (
+                        <Text style={s.gradeClass}>
+                          Moyenne classe : {g.classAverage}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                )
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* ── Communication ───────────────────────────────────────── */}
+        <View style={s.commCard}>
+          <View style={s.commHead}>
+            <View style={s.commIcon}>
+              <Ionicons name="chatbubbles-outline" size={19} color={colors.white} />
+            </View>
+            <Text style={s.commTitle}>Communication avec l’école</Text>
+          </View>
+          <Text style={s.commBody}>
+            Justifiez une absence, demandez un rendez-vous avec le professeur
+            principal, ou contactez la comptabilité.
+          </Text>
+          <View style={s.commActions}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => router.push('/(parent)/messages')}
+              style={s.commPrimary}
+            >
+              <Ionicons name="chatbubble-outline" size={15} color={colors.white} />
+              <Text style={s.commPrimaryText}>Réponse rapide</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => router.push('/(parent)/child')}
+              style={s.commGhost}
+            >
+              <Ionicons name="document-attach-outline" size={15} color={colors.primary} />
+              <Text style={s.commGhostText}>Justifier absence</Text>
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* ── Résumé ─────────────────────────────── */}
-        <View style={styles.sectionWrap}>
-          <Text style={styles.sectionTitle}>Résumé Scolaire</Text>
-          <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { borderTopColor: colors.primary }]}>
-              <Text style={[styles.statValue, { color: colors.primary }]}>14.2/20</Text>
-              <Text style={styles.statLabel}>Moyenne Générale</Text>
-            </View>
-            <View style={[styles.statCard, { borderTopColor: '#F59E0B' }]}>
-              <Text style={[styles.statValue, { color: '#F59E0B' }]}>2 Jours</Text>
-              <Text style={styles.statLabel}>Absences</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ── Alerte Finances ─────────────────────────────── */}
-        <View style={styles.sectionWrap}>
-          <Text style={styles.sectionTitle}>Frais de Scolarité</Text>
-          {feeStatus === 'UNPAID' && (
-            <TouchableOpacity style={styles.alertBanner} activeOpacity={0.8} onPress={() => setShowPayModal(true)}>
-              <Text style={{ fontSize: 18 }}>💳</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.alertTitle}>Paiement en attente</Text>
-                <Text style={styles.alertSub}>Mensualité janvier 2026 (50 000 FCFA)</Text>
-              </View>
-              <Text style={{ color: colors.error, fontWeight: 'bold', fontSize: 12 }}>PAYER</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.error} />
-            </TouchableOpacity>
-          )}
-
-          {feeStatus === 'PENDING' && (
-            <View style={[styles.alertBanner, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
-              <ActivityIndicator color="#D97706" size="small" style={{ marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.alertTitle, { color: '#B45309' }]}>Paiement en cours...</Text>
-                <Text style={[styles.alertSub, { color: '#D97706' }]}>Veuillez taper votre code PIN sur votre téléphone.</Text>
-              </View>
-            </View>
-          )}
-
-          {feeStatus === 'PAID' && (
-            <View style={[styles.alertBanner, { backgroundColor: colors.success + '15', borderColor: colors.success + '40' }]}>
-              <Ionicons name="checkmark-circle" size={24} color={colors.success} style={{ marginRight: 8 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.alertTitle, { color: colors.success }]}>Scolarité à jour !</Text>
-                <Text style={[styles.alertSub, { color: colors.success }]}>Mensualité de janvier payée avec succès.</Text>
-              </View>
-            </View>
-          )}
-        </View>
-
       </ScrollView>
 
-      {/* ── Modal de Paiement Mobile Money ─────────────────────────────── */}
-      <Modal visible={showPayModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Payer par Mobile Money</Text>
-              <TouchableOpacity onPress={() => setShowPayModal(false)}>
-                <Ionicons name="close" size={24} color={colors.gray[500]} />
-              </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.modalAmount}>50 000 FCFA</Text>
-            <Text style={styles.modalDesc}>Mensualité Janvier 2026 - Élève Démo</Text>
-
-            <Text style={styles.label}>Choisissez votre réseau</Text>
-            <View style={styles.networkRow}>
-              <TouchableOpacity 
-                style={[styles.networkBtn, network === 'MTN' && styles.networkBtnActive, { borderColor: '#FBBF24' }]}
-                onPress={() => setNetwork('MTN')}
-              >
-                <Text style={[styles.networkText, network === 'MTN' && { color: '#D97706', fontWeight: 'bold' }]}>MTN MoMo</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.networkBtn, network === 'AIRTEL' && styles.networkBtnActive, { borderColor: '#EF4444' }]}
-                onPress={() => setNetwork('AIRTEL')}
-              >
-                <Text style={[styles.networkText, network === 'AIRTEL' && { color: '#DC2626', fontWeight: 'bold' }]}>Airtel Money</Text>
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.label}>Numéro de téléphone</Text>
-            <TextInput 
-              style={styles.phoneInput}
-              placeholder="Ex: 06 123 45 67"
-              placeholderTextColor={colors.gray[400]}
-              keyboardType="phone-pad"
-              value={phone}
-              onChangeText={setPhone}
-              maxLength={15}
-            />
-
-            <TouchableOpacity style={styles.payBtn} onPress={handlePayment} disabled={loading}>
-              {loading ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.payBtnText}>Confirmer le paiement</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <BottomNav
+        tabs={PARENT_TABS.map((t) =>
+          t.label === 'Paiements' ? { ...t, dot: totalDue > 0 } : t
+        )}
+      />
     </SafeAreaView>
   )
 }
 
-const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scroll:    { paddingBottom: 40 },
+// ── Styles ────────────────────────────────────────────────────────────────────
 
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg, paddingVertical: 10,
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  centerText: { fontFamily: fontFamily.body, fontSize: fontSize.sm, color: colors.mutedText },
+
+  // En-tête
+  header: {
     backgroundColor: colors.surface,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+    paddingTop: spacing.sm, paddingBottom: spacing.sm + 4,
   },
-  topLeft:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  schoolLogo: {
-    width: 40, height: 40, borderRadius: radius.md,
+  headerLabel: {
+    fontFamily: fontFamily.body, fontSize: fontSize.xs,
+    color: colors.mutedText,
+    paddingHorizontal: spacing.md + 4, marginBottom: spacing.sm,
+  },
+  childRail: { paddingHorizontal: spacing.md + 4, gap: spacing.sm + 2 },
+  childCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    minWidth: 190,
+    backgroundColor: colors.gray[100],
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl,
+    paddingHorizontal: spacing.sm + 2, paddingVertical: spacing.sm,
+  },
+  childCardActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  childAvatar: { width: 36, height: 36, borderRadius: 18 },
+  childAvatarFallback: {
+    backgroundColor: colors.muted,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  childInitials: {
+    fontFamily: fontFamily.heading, fontSize: 12,
+    fontWeight: fontWeight.bold, color: colors.primary,
+  },
+  childName: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  childClass: { fontFamily: fontFamily.body, fontSize: 10, color: colors.mutedText, marginTop: 1 },
+
+  content: {
+    paddingHorizontal: spacing.md + 4,
+    paddingTop: spacing.md,
+    paddingBottom: 110,
+    gap: spacing.md + 2,
+  },
+
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: 'rgba(194,65,59,0.08)',
+    borderWidth: 1, borderColor: 'rgba(194,65,59,0.25)',
+    borderRadius: radius.lg, padding: spacing.sm + 4,
+  },
+  errorText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.danger },
+
+  // Solde
+  dueCard: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.xl, padding: spacing.md,
+    ...shadow.md,
+  },
+  dueCardOverdue: { backgroundColor: colors.danger },
+  dueTop: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', gap: spacing.sm,
+  },
+  dueTag: {
+    backgroundColor: 'rgba(255,255,255,0.20)',
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full,
+  },
+  dueTagText: {
+    fontFamily: fontFamily.bodySemi, fontSize: 11,
+    fontWeight: fontWeight.bold, color: colors.white,
+  },
+  dueTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.base,
+    fontWeight: fontWeight.bold, color: colors.white, marginTop: spacing.sm + 2,
+  },
+  dueSub: {
+    fontFamily: fontFamily.body, fontSize: fontSize.xs,
+    color: 'rgba(255,255,255,0.80)', marginTop: 2,
+  },
+  dueBottom: {
+    flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between',
+    marginTop: spacing.md, gap: spacing.sm,
+  },
+  dueAmountLabel: { fontFamily: fontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.75)' },
+  dueAmount: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.xl,
+    fontWeight: fontWeight.extrabold, color: colors.white, marginTop: 2,
+  },
+  dueBtn: {
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2,
+    borderRadius: radius.lg,
+  },
+  dueBtnText: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.primary,
+  },
+  dueMethods: {
+    fontFamily: fontFamily.body, fontSize: 10,
+    color: 'rgba(255,255,255,0.65)', marginTop: spacing.sm,
+  },
+
+  // Sections
+  sectionHead: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: spacing.sm + 2, gap: spacing.sm,
+  },
+  sectionTitle: {
+    flex: 1,
+    fontFamily: fontFamily.heading, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  sectionAction: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold, color: colors.primary,
+  },
+  periodTag: {
+    fontFamily: fontFamily.body, fontSize: 11, color: colors.mutedText,
+  },
+
+  pendingCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl, padding: spacing.md,
+  },
+  pendingText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText, lineHeight: 17 },
+
+  statRow: { flexDirection: 'row', gap: spacing.sm + 2 },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl, padding: spacing.md,
+    ...shadow.sm,
+  },
+  statTop: { flexDirection: 'row', alignItems: 'flex-end', gap: 3 },
+  statValue: {
+    fontFamily: fontFamily.heading, fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.extrabold, color: colors.primary,
+  },
+  statMax: {
+    fontFamily: fontFamily.body, fontSize: fontSize.xs,
+    color: colors.mutedText, marginBottom: 4,
+  },
+  trend: {
+    fontFamily: fontFamily.bodySemi, fontSize: 11,
+    fontWeight: fontWeight.bold, marginBottom: 5, marginLeft: 4,
+  },
+  statLabel: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText, marginTop: 2 },
+
+  attendanceCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl, padding: spacing.sm + 4,
+    marginTop: spacing.sm + 2, gap: spacing.sm,
+  },
+  attendanceLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
+  attendanceMain: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold, color: colors.text,
+  },
+  attendanceDetail: { fontFamily: fontFamily.body, fontSize: 11, color: colors.mutedText },
+
+  // Devoirs
+  workRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl, padding: spacing.sm + 4,
+  },
+  dateBox: {
+    width: 42, alignItems: 'center',
+    backgroundColor: colors.muted,
+    borderRadius: radius.md, paddingVertical: 5,
+  },
+  dateMonth: {
+    fontFamily: fontFamily.bodySemi, fontSize: 9,
+    fontWeight: fontWeight.bold, color: colors.mutedText,
+  },
+  dateDay: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.base,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  workTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  workMeta: { fontFamily: fontFamily.body, fontSize: 11, color: colors.mutedText, marginTop: 1 },
+  workDue: {
+    fontFamily: fontFamily.bodySemi, fontSize: 11,
+    fontWeight: fontWeight.semibold, color: colors.mutedText,
+  },
+  doneTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(15,118,110,0.10)',
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full,
+  },
+  doneTagText: {
+    fontFamily: fontFamily.bodySemi, fontSize: 10,
+    fontWeight: fontWeight.bold, color: colors.secondary,
+  },
+
+  // Notes
+  gradeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl, padding: spacing.sm + 4,
+  },
+  subjectTag: {
+    width: 34, height: 34, borderRadius: radius.md,
+    backgroundColor: 'rgba(20,93,160,0.08)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  subjectTagText: {
+    fontFamily: fontFamily.heading, fontSize: 10,
+    fontWeight: fontWeight.bold, color: colors.primary,
+  },
+  gradeTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  gradeMeta: { fontFamily: fontFamily.body, fontSize: 11, color: colors.mutedText, marginTop: 1 },
+  gradeScore: { fontFamily: fontFamily.heading, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+  gradeClass: { fontFamily: fontFamily.body, fontSize: 10, color: colors.mutedText, marginTop: 1 },
+
+  // Communication
+  commCard: {
+    backgroundColor: 'rgba(20,93,160,0.05)',
+    borderWidth: 1, borderColor: 'rgba(20,93,160,0.20)',
+    borderRadius: radius.xl, padding: spacing.md,
+  },
+  commHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2 },
+  commIcon: {
+    width: 38, height: 38, borderRadius: radius.md,
     backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  schoolName: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: isDark ? colors.gray[100] : colors.gray[900] },
-  schoolSub:  { fontSize: 10, color: colors.gray[500] },
-  topRight:   { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  iconBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  notifDot: {
-    position: 'absolute', top: 8, right: 6, width: 8, height: 8, borderRadius: 4,
-    backgroundColor: colors.error, borderWidth: 1.5, borderColor: colors.surface,
+  commTitle: {
+    flex: 1,
+    fontFamily: fontFamily.heading, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.text,
   },
-  divider: { height: 1, backgroundColor: colors.border },
-
-  welcomeSection: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.surface, paddingHorizontal: spacing.lg, paddingVertical: spacing.lg,
-    marginBottom: spacing.lg, borderBottomWidth: 3, borderBottomColor: colors.primary + '20',
+  commBody: {
+    fontFamily: fontFamily.body, fontSize: fontSize.xs,
+    color: colors.mutedText, marginTop: spacing.sm, lineHeight: 17,
   },
-  welcomeLeft:   { flex: 1 },
-  greetingText:  { fontSize: fontSize.sm, color: colors.gray[500] },
-  welcomeName:   { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: isDark ? colors.gray[100] : colors.gray[900], marginVertical: 4 },
-  avatarCircle: {
-    width: 60, height: 60, borderRadius: 30, backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center', ...shadow.sm,
+  commActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  commPrimary: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm + 2, borderRadius: radius.lg,
   },
-  avatarInitials: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.white },
-
-  sectionWrap:  { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: isDark ? colors.gray[100] : colors.gray[900], marginBottom: spacing.md },
-  
-  childCard: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.md, ...shadow.sm,
+  commPrimaryText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.white,
   },
-  childAvatar: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
+  commGhost: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: 'rgba(20,93,160,0.30)',
+    paddingVertical: spacing.sm + 2, borderRadius: radius.lg,
   },
-  childName: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: isDark ? colors.gray[100] : colors.gray[900] },
-  childClass: { fontSize: fontSize.sm, color: colors.gray[500] },
-  childAction: { backgroundColor: colors.primary + '15', paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full },
-  childActionText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.primary },
-
-  statsGrid: { flexDirection: 'row', gap: spacing.sm },
-  statCard: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.md, borderTopWidth: 3, ...shadow.sm,
+  commGhostText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold, color: colors.primary,
   },
-  statValue: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, marginBottom: 4 },
-  statLabel: { fontSize: fontSize.xs, color: colors.gray[500], fontWeight: fontWeight.medium },
-
-  alertBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: isDark ? '#451a1a' : '#FEF2F2', borderRadius: radius.lg,
-    padding: spacing.md, borderWidth: 1, borderColor: isDark ? '#7f1d1d' : '#FECACA',
-  },
-  alertTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.error },
-  alertSub:   { fontSize: fontSize.xs, color: '#DC2626', marginTop: 1 },
-
-  // Modal styles
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: spacing.lg },
-  modalContent: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.xl, ...shadow.lg },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  modalTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.gray[900] },
-  modalAmount: { fontSize: 32, fontWeight: fontWeight.bold, color: colors.primary, textAlign: 'center', marginTop: spacing.sm },
-  modalDesc: { fontSize: fontSize.sm, color: colors.gray[500], textAlign: 'center', marginBottom: spacing.lg },
-  label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.gray[700], marginBottom: spacing.sm },
-  networkRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  networkBtn: { flex: 1, padding: spacing.md, borderRadius: radius.lg, borderWidth: 2, borderColor: colors.gray[200], alignItems: 'center' },
-  networkBtnActive: { backgroundColor: colors.gray[50] },
-  networkText: { fontSize: fontSize.sm, color: colors.gray[600] },
-  phoneInput: { backgroundColor: colors.gray[50], borderWidth: 1, borderColor: colors.gray[200], borderRadius: radius.lg, padding: spacing.md, fontSize: fontSize.lg, color: colors.gray[900], marginBottom: spacing.xl },
-  payBtn: { backgroundColor: colors.primary, borderRadius: radius.lg, padding: spacing.lg, alignItems: 'center' },
-  payBtnText: { color: colors.white, fontSize: fontSize.base, fontWeight: fontWeight.bold },
 })

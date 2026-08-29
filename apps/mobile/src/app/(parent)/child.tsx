@@ -121,9 +121,9 @@ export default function ParentChildScreen() {
   const [activeTri, setActiveTri] = useState<'T1' | 'T2' | 'T3'>('T2')
 
   // ── Bulletins publiés de l'enfant ─────────────────────────────────────────
-  const shouldFetch = schoolId !== 'demo' && !!studentId
+  const shouldFetch = !!schoolId && schoolId !== 'demo' && !!studentId
   const { bulletins } = useBulletins(
-    shouldFetch ? schoolId : '',
+    shouldFetch ? schoolId! : '',
     { studentId, status: 'published', trimestre: activeTri },
   )
 
@@ -136,7 +136,7 @@ export default function ParentChildScreen() {
       avg:     b.average ?? 0,
       coef:    1,             // pas de coeff par matière dans FSBulletin v1
       trend:   'same' as const,
-      teacher: b.teacherName ?? b.teacherId,  // nom dénormalisé à la soumission, UID en fallback
+      teacher: b.teacher_name ?? b.teacher_id ?? '',  // nom dénormalisé, UID en repli
     }))
     const totalWeight = subjects.reduce((s, sub) => s + sub.avg * sub.coef, 0)
     const totalCoef   = subjects.reduce((s, sub) => s + sub.coef, 0)
@@ -147,7 +147,7 @@ export default function ParentChildScreen() {
       average:      overallAvg,
       conduct:      latest.conduct,
       appreciation: latest.appreciation,
-      className:    latest.className,
+      className:    latest.class_name,
       subjects,
     }
   }, [bulletins])

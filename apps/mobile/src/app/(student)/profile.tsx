@@ -19,7 +19,7 @@ interface MenuItem {
 }
 
 export default function ProfileScreen() {
-  const { profile, logout, updatePhoto } = useAuth()
+  const { profile, user, logout, updatePhoto } = useAuth()
   const [uploading, setUploading] = useState(false)
 
   const initials = profile?.displayName
@@ -101,7 +101,7 @@ export default function ProfileScreen() {
   const INFO_ITEMS: MenuItem[] = [
     {
       icon: 'mail-outline', label: 'Email',
-      value: profile?.email ?? '—',
+      value: user?.email ?? '—',
       onPress: () => {},
     },
     {

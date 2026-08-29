@@ -5,8 +5,10 @@
 import { useState } from 'react'
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Modal, SafeAreaView, StatusBar, Image, TextInput, Alert,
+  Modal, StatusBar, Image, TextInput, Alert,
 } from 'react-native'
+// Celui de `react-native` est déprécié et n'accepte pas `edges`.
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
 

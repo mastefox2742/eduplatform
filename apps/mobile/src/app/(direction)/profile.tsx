@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { colors, spacing, radius, fontSize, fontWeight } from '@/theme'
 
 export default function DirectionProfileScreen() {
-  const { profile, logout } = useAuth()
+  const { profile, user, logout } = useAuth()
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -16,7 +16,7 @@ export default function DirectionProfileScreen() {
           <Text style={styles.avatarText}>{profile?.displayName?.charAt(0) ?? 'D'}</Text>
         </View>
         <Text style={styles.name}>{profile?.displayName ?? 'Direction'}</Text>
-        <Text style={styles.email}>{profile?.email}</Text>
+        <Text style={styles.email}>{user?.email}</Text>
         <View style={styles.roleBadge}>
           <Ionicons name="business" size={14} color='#1e3a5f' />
           <Text style={styles.roleText}>Direction · Collège Demo</Text>

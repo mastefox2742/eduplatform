@@ -4,6 +4,11 @@ import { StatusBar } from 'expo-status-bar'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import * as SplashScreen from 'expo-splash-screen'
+import {
+  useFonts,
+  Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
+} from '@expo-google-fonts/inter'
+import { Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold } from '@expo-google-fonts/manrope'
 import { useAuth } from '@/hooks/useAuth'
 import { useTheme } from '@/theme'
 import { UserRole } from '@school/shared-types'
@@ -51,6 +56,18 @@ function AuthGuard() {
 
 export default function RootLayout() {
   const { isDark, colors } = useTheme()
+
+  // Polices des maquettes, embarquees dans le bundle : aucun appel
+  // reseau au demarrage, ce qui compte sur connexion instable (§19).
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
+    Manrope_600SemiBold, Manrope_700Bold, Manrope_800ExtraBold,
+  })
+
+  // On garde le splash tant que les polices ne sont pas la : afficher
+  // le texte en police systeme puis le voir sauter est plus genant
+  // qu'un court instant de splash.
+  if (!fontsLoaded) return null
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

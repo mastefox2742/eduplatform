@@ -1,1021 +1,823 @@
-import { useState, useEffect } from 'react'
+/**
+ * Appel & Notes — écran enseignant.
+ * Repris de la maquette `design/maquettes/enseignant---appel-et-notes.html`.
+ *
+ * Cahier des charges §11.1, §12.1, §12.2, §19, §26.
+ *
+ * C'est l'écran le plus utilisé de l'ERP : un professeur l'ouvre
+ * plusieurs fois par jour, souvent debout, parfois sans réseau. Trois
+ * décisions en découlent :
+ *
+ *  - **Un geste par élève.** Appuyer sur la ligne fait défiler
+ *    présent → absent → retard. Pas de menu, pas de confirmation.
+ *  - **L'appel entier en un bouton.** « Faire l'appel (1-Tap) » met
+ *    tout le monde présent ; le professeur ne corrige que les absents.
+ *  - **Jamais mentir sur l'état.** Tant que le serveur n'a pas
+ *    confirmé, le bandeau dit « en attente d'envoi », pas
+ *    « enregistré » (§19.3).
+ */
+import { useState } from 'react'
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Modal,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  Image, ActivityIndicator, Alert, Linking, RefreshControl,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
+import { router } from 'expo-router'
+import { colors, spacing, radius, fontSize, fontWeight, fontFamily, shadow } from '@/theme'
 import { useAuth } from '@/hooks/useAuth'
-import { saveAttendanceRecord } from '@/services/firestore'
-import { doc, onSnapshot } from 'firebase/firestore'
-import { db } from '@/services/firestore'
+import { useTeacherSession, type PresenceStatus } from '@/hooks/useTeacherSession'
+import { SectionHeader, EmptyState, Rail } from '@/components/ui/DesignSystem'
+import { BottomNav, TEACHER_TABS } from '@/components/ui/BottomNav'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ── Statuts ───────────────────────────────────────────────────────────────────
 
-type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused' | null
-
-interface Student {
-  id: string
-  name: string
-  avatar: string
-}
-
-interface AttendanceRecord {
-  studentId: string
-  status: AttendanceStatus
-  note?: string
-}
-
-interface ClassSession {
-  id: string
-  className: string
-  subject: string
-  time: string
-  room: string
-  studentCount: number
-}
-
-// ─── Demo Data ────────────────────────────────────────────────────────────────
-
-const CLASSES: ClassSession[] = [
-  { id: 'c1', className: '3ème B', subject: 'Mathématiques', time: '07:30 – 09:00', room: 'S.12', studentCount: 32 },
-  { id: 'c2', className: '4ème A', subject: 'Mathématiques', time: '09:15 – 10:45', room: 'S.08', studentCount: 28 },
-  { id: 'c3', className: '5ème C', subject: 'Mathématiques', time: '11:00 – 12:30', room: 'S.15', studentCount: 30 },
-]
-
-const STUDENTS_BY_CLASS: Record<string, Student[]> = {
-  c1: [
-    { id: 's1',  name: 'ABENA Marie',       avatar: 'AM' },
-    { id: 's2',  name: 'BONGO Jean',         avatar: 'BJ' },
-    { id: 's3',  name: 'DIBAS Lucie',        avatar: 'DL' },
-    { id: 's4',  name: 'EBANG Paul',         avatar: 'EP' },
-    { id: 's5',  name: 'FOUDA Christelle',   avatar: 'FC' },
-    { id: 's6',  name: 'GABIN Théo',         avatar: 'GT' },
-    { id: 's7',  name: 'HANGA Sophie',       avatar: 'HS' },
-    { id: 's8',  name: 'IBINGA Marc',        avatar: 'IM' },
-    { id: 's9',  name: 'JAFIA Nadia',        avatar: 'JN' },
-    { id: 's10', name: 'KOMBILA Franck',     avatar: 'KF' },
-    { id: 's11', name: 'LEKOGA Elise',       avatar: 'LE' },
-    { id: 's12', name: 'MBOULA Patrick',     avatar: 'MP' },
-    { id: 's13', name: 'NDONG Aurore',       avatar: 'NA' },
-    { id: 's14', name: 'OBAME Kevin',        avatar: 'OK' },
-    { id: 's15', name: 'PAMBOU Laetitia',    avatar: 'PL' },
-  ],
-  c2: [
-    { id: 's16', name: 'ASSOUMOU Berthe',    avatar: 'AB' },
-    { id: 's17', name: 'BININGA Rodrigue',   avatar: 'BR' },
-    { id: 's18', name: 'CONGO Félicité',     avatar: 'CF' },
-    { id: 's19', name: 'DOSSOU Armand',      avatar: 'DA' },
-    { id: 's20', name: 'EDZANG Sabine',      avatar: 'ES' },
-    { id: 's21', name: 'FANG Herman',        avatar: 'FH' },
-    { id: 's22', name: 'GNAGNA Yvette',      avatar: 'GY' },
-    { id: 's23', name: 'HOUDA Blaise',       avatar: 'HB' },
-    { id: 's24', name: 'IPOUHO Carole',      avatar: 'IC' },
-    { id: 's25', name: 'JONGLE Thierry',     avatar: 'JT' },
-  ],
-  c3: [
-    { id: 's26', name: 'ABOGHE Sylvie',      avatar: 'AS' },
-    { id: 's27', name: 'BEKALE Jonas',       avatar: 'BJ' },
-    { id: 's28', name: 'CLOTAIRE Madeleine', avatar: 'CM' },
-    { id: 's29', name: 'DANG Gaston',        avatar: 'DG' },
-    { id: 's30', name: 'EVINA Patricia',     avatar: 'EP' },
-    { id: 's31', name: 'FOYET Lionel',       avatar: 'FL' },
-    { id: 's32', name: 'GOMA Cécile',        avatar: 'GC' },
-    { id: 's33', name: 'HINGOU Martial',     avatar: 'HM' },
-    { id: 's34', name: 'IKA Rosalie',        avatar: 'IR' },
-    { id: 's35', name: 'JOCKO Emmanuel',     avatar: 'JE' },
-    { id: 's36', name: 'KOUMBA Florence',    avatar: 'KF' },
-  ],
-}
-
-const DAYS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
-const FULL_DAYS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
-const DATE_NUMS = ['19', '20', '21', '22', '23', '24']
-// Dates ISO correspondantes (semaine du 19/05/2026 en démo)
-const DATE_ISO = ['2026-05-19', '2026-05-20', '2026-05-21', '2026-05-22', '2026-05-23', '2026-05-24']
-
-// ─── Status Config ────────────────────────────────────────────────────────────
-
-const STATUS_CONFIG: Record<
-  Exclude<AttendanceStatus, null>,
-  { label: string; color: string; bg: string; icon: keyof typeof Ionicons.glyphMap }
+const STATUS: Record<
+  Exclude<PresenceStatus, 'justified' | 'pending'>,
+  { label: string; bg: string; fg: string; icon: keyof typeof Ionicons.glyphMap; border?: string }
 > = {
-  present: { label: 'Présent',  color: colors.success, bg: '#dcfce7', icon: 'checkmark-circle' },
-  absent:  { label: 'Absent',   color: colors.danger,  bg: '#fee2e2', icon: 'close-circle' },
-  late:    { label: 'Retard',   color: colors.warning, bg: '#fef3c7', icon: 'time' },
-  excused: { label: 'Excusé',   color: colors.info,    bg: '#e0f2fe', icon: 'document-text' },
+  present: {
+    label: 'Présent',
+    bg: colors.secondary,
+    fg: colors.white,
+    icon: 'checkmark-circle',
+  },
+  absent: {
+    label: 'Absent',
+    bg: colors.danger,
+    fg: colors.white,
+    icon: 'close-circle',
+    border: 'rgba(194, 65, 59, 0.30)',
+  },
+  late: {
+    label: 'Retard',
+    bg: colors.accent,
+    fg: colors.white,
+    icon: 'time',
+    border: 'rgba(244, 166, 42, 0.45)',
+  },
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function buildInitialRecords(students: Student[]): Record<string, AttendanceRecord> {
-  const rec: Record<string, AttendanceRecord> = {}
-  students.forEach(s => { rec[s.id] = { studentId: s.id, status: null } })
-  return rec
+function initials(name: string): string {
+  return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase()
 }
 
-function countByStatus(records: Record<string, AttendanceRecord>) {
-  let present = 0, absent = 0, late = 0, excused = 0, unmarked = 0
-  Object.values(records).forEach(r => {
-    if      (r.status === 'present') present++
-    else if (r.status === 'absent')  absent++
-    else if (r.status === 'late')    late++
-    else if (r.status === 'excused') excused++
-    else                              unmarked++
-  })
-  return { present, absent, late, excused, unmarked }
-}
-
-// ─── Components ──────────────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: AttendanceStatus }) {
-  if (!status) return (
-    <View style={[styles.statusBadge, { backgroundColor: colors.gray[100] }]}>
-      <Text style={[styles.statusText, { color: colors.gray[400] }]}>—</Text>
-    </View>
-  )
-  const cfg = STATUS_CONFIG[status]
-  return (
-    <View style={[styles.statusBadge, { backgroundColor: cfg.bg }]}>
-      <Ionicons name={cfg.icon} size={12} color={cfg.color} />
-      <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.label}</Text>
-    </View>
-  )
-}
-
-function StudentRow({
-  student,
-  record,
-  onPress,
-}: {
-  student: Student
-  record: AttendanceRecord
-  onPress: () => void
-}) {
-  const status = record.status
-  const hasNote = !!record.note
-
-  return (
-    <TouchableOpacity style={styles.studentRow} onPress={onPress} activeOpacity={0.7}>
-      {/* Avatar */}
-      <View style={[
-        styles.avatar,
-        status ? { backgroundColor: STATUS_CONFIG[status].bg } : { backgroundColor: colors.gray[100] },
-      ]}>
-        <Text style={[
-          styles.avatarText,
-          { color: status ? STATUS_CONFIG[status].color : colors.gray[500] },
-        ]}>
-          {student.avatar}
-        </Text>
-      </View>
-
-      {/* Name */}
-      <View style={{ flex: 1 }}>
-        <Text style={styles.studentName}>{student.name}</Text>
-        {hasNote && (
-          <Text style={styles.notePreview} numberOfLines={1}>📝 {record.note}</Text>
-        )}
-      </View>
-
-      {/* Status Badge */}
-      <StatusBadge status={status} />
-
-      <Ionicons name="chevron-forward" size={14} color={colors.gray[400]} style={{ marginLeft: 4 }} />
-    </TouchableOpacity>
-  )
-}
-
-function StatusPicker({
-  value,
-  onChange,
-}: {
-  value: AttendanceStatus
-  onChange: (s: AttendanceStatus) => void
-}) {
-  return (
-    <View style={styles.statusPicker}>
-      {(Object.keys(STATUS_CONFIG) as Exclude<AttendanceStatus, null>[]).map(key => {
-        const cfg = STATUS_CONFIG[key]
-        const selected = value === key
-        return (
-          <TouchableOpacity
-            key={key}
-            style={[
-              styles.statusOption,
-              selected && { backgroundColor: cfg.bg, borderColor: cfg.color },
-            ]}
-            onPress={() => onChange(key)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name={cfg.icon} size={20} color={selected ? cfg.color : colors.gray[400]} />
-            <Text style={[
-              styles.statusOptionLabel,
-              { color: selected ? cfg.color : colors.gray[600] },
-            ]}>
-              {cfg.label}
-            </Text>
-          </TouchableOpacity>
-        )
-      })}
-    </View>
-  )
-}
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ── Écran ─────────────────────────────────────────────────────────────────────
 
 export default function TeacherAttendanceScreen() {
-  // ── Firebase ──────────────────────────────────────────────────────────────
-  const { user, profile } = useAuth()
-  const schoolId  = profile?.schoolId ?? 'demo'
-  const teacherId = user?.uid ?? ''
+  const { profile } = useAuth()
+  const {
+    slots, activeSlot, students, records, counts, grading,
+    isLoading, error, periodOpen, pendingCount, isOnline,
+    selectSlot, cycleStatus, markAllPresent, submit, reload,
+  } = useTeacherSession()
 
-  const [selectedDay, setSelectedDay] = useState(5) // Samedi (today)
-  const [selectedClassId, setSelectedClassId] = useState('c1')
-  const [records, setRecords] = useState<Record<string, Record<string, AttendanceRecord>>>({
-    c1: buildInitialRecords(STUDENTS_BY_CLASS.c1),
-    c2: buildInitialRecords(STUDENTS_BY_CLASS.c2),
-    c3: buildInitialRecords(STUDENTS_BY_CLASS.c3),
-  })
-  const [saved, setSaved] = useState<Record<string, boolean>>({ c1: false, c2: false, c3: false })
+  // Progression réelle de la saisie des notes (0 si aucune évaluation).
+  const pct = grading.expected > 0
+    ? Math.round((grading.entered / grading.expected) * 100)
+    : 0
 
-  // ── Chargement Firebase du jour sélectionné ───────────────────────────────
-  useEffect(() => {
-    if (!schoolId || schoolId === 'demo' || !teacherId) return
+  const [saving, setSaving] = useState(false)
+  const [justQueued, setJustQueued] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
-    const dateISO = DATE_ISO[selectedDay]
-    const docId   = `${selectedClassId}_${dateISO}`
-
-    const unsub = onSnapshot(
-      doc(db, 'schools', schoolId, 'attendance', docId),
-      snap => {
-        if (!snap.exists()) return
-        const data = snap.data()
-        if (!data.records) return
-        // Fusionne les présences sauvegardées dans l'état local
-        setRecords(prev => ({
-          ...prev,
-          [selectedClassId]: data.records,
-        }))
-        // Marque comme sauvegardé si le document existe
-        setSaved(prev => ({ ...prev, [selectedClassId]: true }))
-      },
-    )
-
-    return unsub
-  }, [schoolId, teacherId, selectedClassId, selectedDay])
-
-  // Modal state
-  const [modalStudent, setModalStudent] = useState<Student | null>(null)
-  const [pendingStatus, setPendingStatus] = useState<AttendanceStatus>(null)
-  const [pendingNote, setPendingNote] = useState('')
-
-  const cls = CLASSES.find(c => c.id === selectedClassId)!
-  const students = STUDENTS_BY_CLASS[selectedClassId]
-  const classRecords = records[selectedClassId]
-  const counts = countByStatus(classRecords)
-  const total = students.length
-  const isSaved = saved[selectedClassId]
-
-  function openModal(student: Student) {
-    const rec = classRecords[student.id]
-    setModalStudent(student)
-    setPendingStatus(rec.status)
-    setPendingNote(rec.note ?? '')
-  }
-
-  function closeModal() {
-    setModalStudent(null)
-    setPendingStatus(null)
-    setPendingNote('')
-  }
-
-  function confirmModal() {
-    if (!modalStudent) return
-    setRecords(prev => ({
-      ...prev,
-      [selectedClassId]: {
-        ...prev[selectedClassId],
-        [modalStudent.id]: { studentId: modalStudent.id, status: pendingStatus, note: pendingNote || undefined },
-      },
-    }))
-    closeModal()
-  }
-
-  function markAll(status: Exclude<AttendanceStatus, null>) {
-    setRecords(prev => {
-      const updated: Record<string, AttendanceRecord> = {}
-      students.forEach(s => { updated[s.id] = { studentId: s.id, status } })
-      return { ...prev, [selectedClassId]: updated }
-    })
-  }
-
-  async function saveAttendance() {
-    // 1. Mise à jour locale instantanée
-    setSaved(prev => ({ ...prev, [selectedClassId]: true }))
-
-    // 2. Persistance Firebase en arrière-plan
-    if (schoolId !== 'demo' && teacherId) {
-      try {
-        await saveAttendanceRecord(
-          schoolId,
-          selectedClassId,
-          DATE_ISO[selectedDay],
-          teacherId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          classRecords as any,
-          {
-            className: cls.className,
-            dayLabel:  FULL_DAYS[selectedDay],
-            subject:   cls.subject,
-          },
-        )
-      } catch (e) {
-        console.warn('[attendance] saveAttendance Firebase failed:', e)
-      }
+  async function handleSubmit() {
+    if (!periodOpen) {
+      Alert.alert(
+        'Période fermée',
+        "La saisie est verrouillée pour cette période. Contactez le Directeur des Études.",
+      )
+      return
     }
+    setSaving(true)
+    const { queued } = await submit()
+    setSaving(false)
+    setJustQueued(queued)
   }
 
-  const presentPct = total > 0 ? Math.round((counts.present / total) * 100) : 0
+  /**
+   * Alerte parent d'une absence (§11.1).
+   * WhatsApp est le canal prioritaire du cahier des charges ; le SMS
+   * prend le relais si le numéro n'est pas sur WhatsApp.
+   */
+  function alertGuardian(studentName: string, phone: string | null) {
+    if (!phone) {
+      Alert.alert('Aucun contact', `Aucun numéro enregistré pour le responsable de ${studentName}.`)
+      return
+    }
+    const cls = activeSlot?.className ?? 'sa classe'
+    const message = encodeURIComponent(
+      `Bonjour, votre enfant ${studentName} est absent(e) au cours de ${activeSlot?.subjectName ?? ''} (${cls}) aujourd'hui. Merci de justifier via l'application.`
+    )
+    const clean = phone.replace(/[^\d+]/g, '')
+    Linking.openURL(`whatsapp://send?phone=${clean}&text=${message}`).catch(() =>
+      Linking.openURL(`sms:${clean}?body=${message}`)
+    )
+  }
+
+  // ── États explicites (§23) ─────────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={s.screen} edges={['top']}>
+        <View style={s.center}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={s.centerText}>Chargement de vos cours…</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* ── Header ── */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Présences</Text>
-          <Text style={styles.headerSub}>Semaine du 19 mai 2026</Text>
+    <SafeAreaView style={s.screen} edges={['top']}>
+      {/* ── En-tête : identité + état de synchronisation ─────────────── */}
+      <View style={s.header}>
+        <View style={s.rowBetween}>
+          <View style={s.row}>
+            <View style={s.avatarWrap}>
+              {profile?.photoUrl ? (
+                <Image source={{ uri: profile.photoUrl }} style={s.avatar} />
+              ) : (
+                <View style={[s.avatar, s.avatarFallback]}>
+                  <Text style={s.avatarInitials}>
+                    {initials(profile?.displayName ?? 'Prof')}
+                  </Text>
+                </View>
+              )}
+              <View style={[s.presenceDot, { backgroundColor: isOnline ? colors.secondary : colors.gray[400] }]} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.teacherName} numberOfLines={1}>
+                {profile?.displayName ?? 'Enseignant'}
+              </Text>
+              <Text style={s.teacherRole} numberOfLines={1}>
+                {activeSlot ? `Professeur de ${activeSlot.subjectName}` : 'Aucun cours aujourd’hui'}
+              </Text>
+            </View>
+          </View>
+
+          {/* §19.3 : l'état dit ce qui attend, jamais ce qui est promis. */}
+          <View
+            style={[
+              s.syncPill,
+              pendingCount > 0
+                ? { backgroundColor: 'rgba(244,166,42,0.12)', borderColor: 'rgba(244,166,42,0.40)' }
+                : { backgroundColor: 'rgba(15,118,110,0.10)', borderColor: 'rgba(15,118,110,0.30)' },
+            ]}
+          >
+            <Ionicons
+              name={pendingCount > 0 ? 'cloud-upload-outline' : 'cloud-done'}
+              size={14}
+              color={pendingCount > 0 ? '#A96A0C' : colors.secondary}
+            />
+            <Text
+              style={[
+                s.syncText,
+                { color: pendingCount > 0 ? '#A96A0C' : colors.secondary },
+              ]}
+            >
+              {pendingCount > 0 ? `${pendingCount} en attente` : 'Synchronisé'}
+            </Text>
+          </View>
         </View>
-        {isSaved && (
-          <View style={styles.savedBadge}>
-            <Ionicons name="checkmark-circle" size={14} color={colors.success} />
-            <Text style={styles.savedText}>Sauvegardé</Text>
+
+        {/* ── Classe active + changement de créneau ──────────────────── */}
+        {activeSlot && (
+          <View style={s.classBar}>
+            <View style={s.row}>
+              <View style={s.classBadge}>
+                <Text style={s.classBadgeText}>
+                  {activeSlot.className.replace(/[^A-Za-z0-9]/g, '').slice(0, 3).toUpperCase()}
+                </Text>
+              </View>
+              <View>
+                <Text style={s.classTitle}>Classe de {activeSlot.className}</Text>
+                <Text style={s.classMeta}>
+                  {students.length} élèves
+                  {activeSlot.room ? ` · ${activeSlot.room}` : ''}
+                  {activeSlot.startTime ? ` · ${activeSlot.startTime} - ${activeSlot.endTime}` : ''}
+                </Text>
+              </View>
+            </View>
           </View>
         )}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* ── Day Picker ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.dayStrip}
-        >
-          {DAYS.map((d, i) => (
-            <TouchableOpacity
-              key={i}
-              style={[styles.dayChip, selectedDay === i && styles.dayChipActive]}
-              onPress={() => setSelectedDay(i)}
-            >
-              <Text style={[styles.dayNum, selectedDay === i && styles.dayNumActive]}>
-                {DATE_NUMS[i]}
-              </Text>
-              <Text style={[styles.dayName, selectedDay === i && styles.dayNameActive]}>
-                {d}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* ── Class Selector ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.classStrip}
-        >
-          {CLASSES.map(c => (
-            <TouchableOpacity
-              key={c.id}
-              style={[styles.classTab, selectedClassId === c.id && styles.classTabActive]}
-              onPress={() => setSelectedClassId(c.id)}
-            >
-              <Text style={[styles.classTabName, selectedClassId === c.id && styles.classTabNameActive]}>
-                {c.className}
-              </Text>
-              <Text style={[styles.classTabSub, selectedClassId === c.id && styles.classTabSubActive]}>
-                {c.subject}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* ── Session Info ── */}
-        <View style={styles.sessionCard}>
-          <View style={styles.sessionRow}>
-            <Ionicons name="time-outline" size={15} color={colors.primary} />
-            <Text style={styles.sessionInfo}>{cls.time}</Text>
+      <ScrollView
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true)
+              reload()
+              setTimeout(() => setRefreshing(false), 600)
+            }}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {/* ── Rail des créneaux du jour ────────────────────────────── */}
+        {slots.length > 1 && (
+          <View>
+            <SectionHeader title="Mes cours du jour" subtitle={`${slots.length} créneaux`} />
+            <Rail>
+              {slots.map((slot) => {
+                const active = slot.classId === activeSlot?.classId
+                return (
+                  <TouchableOpacity
+                    key={`${slot.slotId}`}
+                    activeOpacity={0.8}
+                    onPress={() => selectSlot(slot)}
+                    style={[s.slotCard, active && s.slotCardActive]}
+                  >
+                    <Text style={[s.slotTime, active && { color: colors.white, opacity: 0.9 }]}>
+                      {slot.startTime} - {slot.endTime}
+                    </Text>
+                    <Text style={[s.slotClass, active && { color: colors.white }]} numberOfLines={1}>
+                      {slot.className}
+                    </Text>
+                    <Text style={[s.slotSubject, active && { color: colors.white, opacity: 0.85 }]} numberOfLines={1}>
+                      {slot.subjectName}
+                    </Text>
+                    {slot.isNow && (
+                      <View style={[s.nowTag, active && { backgroundColor: 'rgba(255,255,255,0.25)' }]}>
+                        <Text style={[s.nowTagText, active && { color: colors.white }]}>EN COURS</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )
+              })}
+            </Rail>
           </View>
-          <View style={styles.sessionRow}>
-            <Ionicons name="location-outline" size={15} color={colors.primary} />
-            <Text style={styles.sessionInfo}>Salle {cls.room}</Text>
-          </View>
-          <View style={styles.sessionRow}>
-            <Ionicons name="people-outline" size={15} color={colors.primary} />
-            <Text style={styles.sessionInfo}>{total} élèves</Text>
-          </View>
-        </View>
+        )}
 
-        {/* ── Stats ── */}
-        <View style={styles.statsRow}>
-          {[
-            { label: 'Présents', value: counts.present, color: colors.success, bg: '#dcfce7' },
-            { label: 'Absents',  value: counts.absent,  color: colors.danger,  bg: '#fee2e2' },
-            { label: 'Retards',  value: counts.late,    color: colors.warning, bg: '#fef3c7' },
-            { label: 'Non saisis', value: counts.unmarked, color: colors.gray[500], bg: colors.gray[100] },
-          ].map(s => (
-            <View key={s.label} style={[styles.statBox, { backgroundColor: s.bg }]}>
-              <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
-              <Text style={[styles.statLabel, { color: s.color }]}>{s.label}</Text>
+        {/* ── Bandeau d'appel ──────────────────────────────────────── */}
+        {activeSlot && (
+          <View style={s.heroCard}>
+            <View style={s.rowBetween}>
+              <View style={{ flex: 1 }}>
+                {activeSlot.isNow && (
+                  <View style={s.liveTag}>
+                    <View style={s.liveDot} />
+                    <Text style={s.liveText}>
+                      Cours en cours ({activeSlot.startTime} - {activeSlot.endTime})
+                    </Text>
+                  </View>
+                )}
+                <Text style={s.heroTitle}>Appel de présence flash</Text>
+                <Text style={s.heroSub}>
+                  {counts.present} présents · {counts.absent} absents · {counts.late} retards
+                </Text>
+              </View>
+              <View style={s.heroIcon}>
+                <Ionicons name="people" size={24} color={colors.white} />
+              </View>
             </View>
-          ))}
-        </View>
 
-        {/* ── Presence Rate ── */}
-        <View style={styles.rateCard}>
-          <View style={styles.rateHeader}>
-            <Text style={styles.rateTitle}>Taux de présence</Text>
-            <Text style={[styles.rateValue, { color: presentPct >= 80 ? colors.success : presentPct >= 60 ? colors.warning : colors.danger }]}>
-              {counts.unmarked === total ? '—' : `${presentPct}%`}
+            <View style={s.heroActions}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={markAllPresent}
+                style={s.heroPrimaryBtn}
+              >
+                <Ionicons name="checkbox" size={16} color={colors.secondary} />
+                <Text style={s.heroPrimaryText}>Faire l’appel (1-Tap)</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => router.push('/(teacher)/courses')}
+                style={s.heroGhostBtn}
+              >
+                <Ionicons name="create-outline" size={14} color={colors.white} />
+                <Text style={s.heroGhostText}>Cahier de texte</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* ── Période verrouillée ──────────────────────────────────── */}
+        {!periodOpen && (
+          <View style={s.lockBanner}>
+            <Ionicons name="lock-closed" size={16} color={colors.danger} />
+            <Text style={s.lockText}>
+              Période verrouillée par le Directeur des Études · saisie en lecture seule
             </Text>
           </View>
-          <View style={styles.progressBar}>
-            <View style={[
-              styles.progressFill,
-              {
-                width: `${presentPct}%` as any,
-                backgroundColor: presentPct >= 80 ? colors.success : presentPct >= 60 ? colors.warning : colors.danger,
-              },
-            ]} />
+        )}
+
+        {error && (
+          <View style={s.lockBanner}>
+            <Ionicons name="alert-circle" size={16} color={colors.danger} />
+            <Text style={s.lockText}>{error}</Text>
+          </View>
+        )}
+
+        {/* ── Pointage rapide ──────────────────────────────────────── */}
+        <View>
+          <SectionHeader
+            title={`Pointage rapide${activeSlot ? ` · ${activeSlot.className}` : ''}`}
+            right={<Text style={s.hint}>Appuyez pour basculer</Text>}
+          />
+
+          {students.length === 0 ? (
+            <EmptyState
+              icon="people-outline"
+              title="Aucun élève dans cette classe"
+              detail="Vérifiez les inscriptions auprès du secrétariat."
+            />
+          ) : (
+            <View style={{ gap: spacing.sm }}>
+              {students.map((student) => {
+                const status = (records[student.id]?.status ?? 'present') as keyof typeof STATUS
+                const cfg = STATUS[status] ?? STATUS.present
+
+                return (
+                  <TouchableOpacity
+                    key={student.id}
+                    activeOpacity={0.75}
+                    disabled={!periodOpen}
+                    onPress={() => cycleStatus(student.id)}
+                    style={[s.studentRow, cfg.border ? { borderColor: cfg.border } : null]}
+                  >
+                    <View style={s.row}>
+                      {student.photoUrl ? (
+                        <Image source={{ uri: student.photoUrl }} style={s.studentAvatar} />
+                      ) : (
+                        <View style={[s.studentAvatar, s.avatarFallback]}>
+                          <Text style={s.avatarInitials}>{initials(student.fullName)}</Text>
+                        </View>
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.studentName} numberOfLines={1}>{student.fullName}</Text>
+                        <Text
+                          style={[
+                            s.studentMeta,
+                            status === 'absent' && { color: colors.danger, fontWeight: fontWeight.medium },
+                            status === 'late' && { color: '#A96A0C', fontWeight: fontWeight.medium },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {status === 'absent'
+                            ? 'Absent non justifié'
+                            : status === 'late'
+                              ? 'En retard'
+                              : `${student.rollNumber ? `N° ${student.rollNumber}` : ''}${
+                                  student.average != null ? ` · Moy: ${student.average}/20` : ''
+                                }` || 'Présent'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={s.rowTight}>
+                      <View style={[s.statusPill, { backgroundColor: cfg.bg }]}>
+                        <Ionicons name={cfg.icon} size={13} color={cfg.fg} />
+                        <Text style={[s.statusPillText, { color: cfg.fg }]}>{cfg.label}</Text>
+                      </View>
+
+                      {/* Alerte parent : n'apparaît que pour un absent (§11.1) */}
+                      {status === 'absent' && (
+                        <TouchableOpacity
+                          accessibilityLabel={`Alerter le responsable de ${student.fullName}`}
+                          onPress={() => alertGuardian(student.fullName, student.guardianWhatsapp)}
+                          style={s.whatsappBtn}
+                        >
+                          <Ionicons name="logo-whatsapp" size={16} color={colors.secondary} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )
+              })}
+            </View>
+          )}
+        </View>
+
+        {/* ── Saisie flash des notes ───────────────────────────────── */}
+        {activeSlot && (
+          <View>
+            <SectionHeader
+              title="Saisie flash des notes"
+              subtitle={
+                grading.title
+                  ? `${grading.title} · Coeff. ${grading.coefficient ?? 1} · Sur ${grading.maxScore ?? 20}`
+                  : `${activeSlot.subjectName} · ${activeSlot.className}`
+              }
+              right={
+                <TouchableOpacity style={s.rowTight}>
+                  <Ionicons name="cloud-upload-outline" size={14} color={colors.primary} />
+                  <Text style={s.linkText}>Import Excel</Text>
+                </TouchableOpacity>
+              }
+            />
+            <View style={s.notesCard}>
+              {grading.assessmentId ? (
+                <>
+                  <View style={s.rowBetween}>
+                    <Text style={s.notesProgress}>
+                      Progression saisie :{' '}
+                      <Text style={s.bold}>
+                        {grading.entered} / {grading.expected} élèves
+                      </Text>
+                    </Text>
+                    <Text style={s.notesPercent}>{pct} %</Text>
+                  </View>
+                  <View style={s.progressTrack}>
+                    <View style={[s.progressFill, { width: `${pct}%` }]} />
+                  </View>
+                </>
+              ) : (
+                <Text style={s.notesProgress}>
+                  Aucune évaluation en cours de saisie pour cette classe.
+                </Text>
+              )}
+              <View style={[s.rowTight, { marginTop: spacing.sm }]}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => router.push('/(teacher)/grades-flash')}
+                  style={s.notesPrimaryBtn}
+                >
+                  <Ionicons name="keypad-outline" size={16} color={colors.white} />
+                  <Text style={s.notesPrimaryText}>Continuer la saisie rapide</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => router.push('/(teacher)/grades')}
+                  style={s.notesGhostBtn}
+                >
+                  <Ionicons name="eye-outline" size={15} color={colors.text} />
+                  <Text style={s.notesGhostText}>Moyennes</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* ── Assistant IA ─────────────────────────────────────────── */}
+        <View style={s.aiCard}>
+          <View style={[s.row, { alignItems: 'flex-start' }]}>
+            <View style={s.aiIcon}>
+              <Ionicons name="sparkles" size={19} color={colors.white} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={s.rowBetween}>
+                <Text style={s.aiTitle}>Assistant cours & exercices IA</Text>
+                <View style={s.aiTag}><Text style={s.aiTagText}>Nouveau</Text></View>
+              </View>
+              <Text style={s.aiBody}>
+                Générez une fiche pédagogique conforme au programme national, ou
+                cinq exercices types avec corrigés. Vous relisez et validez avant publication.
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => router.push('/(teacher)/fiche-cours')}
+                style={s.aiBtn}
+              >
+                <Ionicons name="star-outline" size={15} color={colors.primary} />
+                <Text style={s.aiBtnText}>Générer une séquence pédagogique</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-
-        {/* ── Quick Actions ── */}
-        <View style={styles.quickRow}>
-          <Text style={styles.quickLabel}>Marquer tout :</Text>
-          {(['present', 'absent'] as const).map(key => {
-            const cfg = STATUS_CONFIG[key]
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[styles.quickBtn, { borderColor: cfg.color, backgroundColor: cfg.bg }]}
-                onPress={() => markAll(key)}
-              >
-                <Ionicons name={cfg.icon} size={13} color={cfg.color} />
-                <Text style={[styles.quickBtnText, { color: cfg.color }]}>{cfg.label}</Text>
-              </TouchableOpacity>
-            )
-          })}
-        </View>
-
-        {/* ── Student List ── */}
-        <View style={styles.listContainer}>
-          <Text style={styles.listTitle}>
-            {FULL_DAYS[selectedDay]} — {cls.className}
-          </Text>
-          {students.map(student => (
-            <StudentRow
-              key={student.id}
-              student={student}
-              record={classRecords[student.id]}
-              onPress={() => openModal(student)}
-            />
-          ))}
-        </View>
-
-        {/* ── Save Button ── */}
-        <TouchableOpacity
-          style={[styles.saveBtn, isSaved && styles.saveBtnDone]}
-          onPress={saveAttendance}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={isSaved ? 'checkmark-circle' : 'save-outline'}
-            size={18}
-            color={colors.white}
-          />
-          <Text style={styles.saveBtnText}>
-            {isSaved ? 'Présences sauvegardées' : 'Valider les présences'}
-          </Text>
-        </TouchableOpacity>
-
-        <View style={{ height: spacing.xl }} />
       </ScrollView>
 
-      {/* ── Student Modal ── */}
-      <Modal
-        visible={!!modalStudent}
-        animationType="slide"
-        presentationStyle="formSheet"
-        onRequestClose={closeModal}
-      >
-        <View style={styles.modal}>
-          {/* Modal Header */}
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={closeModal} style={styles.modalCancel}>
-              <Text style={styles.modalCancelText}>Annuler</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Saisie de présence</Text>
-            <TouchableOpacity onPress={confirmModal} style={styles.modalConfirm}>
-              <Text style={styles.modalConfirmText}>OK</Text>
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.md }}>
-            {/* Student Info */}
-            {modalStudent && (
-              <View style={styles.modalStudentCard}>
-                <View style={styles.modalAvatar}>
-                  <Text style={styles.modalAvatarText}>{modalStudent.avatar}</Text>
-                </View>
-                <View>
-                  <Text style={styles.modalStudentName}>{modalStudent.name}</Text>
-                  <Text style={styles.modalStudentSub}>{cls.className} · {FULL_DAYS[selectedDay]}</Text>
-                </View>
-              </View>
-            )}
-
-            {/* Status Picker */}
-            <Text style={styles.modalSection}>Statut</Text>
-            <StatusPicker value={pendingStatus} onChange={setPendingStatus} />
-
-            {/* Note */}
-            <Text style={styles.modalSection}>Note (optionnel)</Text>
-            <TouchableOpacity
-              style={styles.noteInput}
-              activeOpacity={0.9}
-            >
-              <Text style={[styles.noteInputText, !pendingNote && { color: colors.gray[400] }]}>
-                {pendingNote || 'Ex : certificat médical, retard de transport…'}
+      {/* ── Barre d'enregistrement ─────────────────────────────────── */}
+      {activeSlot && students.length > 0 && (
+        <View style={s.submitBar}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.submitCount}>
+              {counts.present} présents · {counts.absent} absents · {counts.late} retards
+            </Text>
+            {justQueued && (
+              <Text style={s.submitHint}>
+                {pendingCount > 0
+                  ? 'En attente d’envoi — sera synchronisé au retour du réseau'
+                  : 'Appel enregistré'}
               </Text>
-            </TouchableOpacity>
-
-            {/* Presets */}
-            <View style={styles.notePresets}>
-              {['Certificat médical', 'Retard de transport', 'Problème familial'].map(preset => (
-                <TouchableOpacity
-                  key={preset}
-                  style={styles.notePresetBtn}
-                  onPress={() => setPendingNote(preset)}
-                >
-                  <Text style={styles.notePresetText}>{preset}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </ScrollView>
+            )}
+          </View>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={saving || !periodOpen}
+            onPress={handleSubmit}
+            style={[s.submitBtn, (saving || !periodOpen) && { opacity: 0.5 }]}
+          >
+            {saving
+              ? <ActivityIndicator color={colors.white} size="small" />
+              : <Ionicons name="checkmark-done" size={17} color={colors.white} />}
+            <Text style={s.submitBtnText}>Enregistrer l’appel</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
+      )}
+
+      <BottomNav tabs={TEACHER_TABS} />
     </SafeAreaView>
   )
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ── Styles ────────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  centerText: { fontFamily: fontFamily.body, fontSize: fontSize.sm, color: colors.mutedText },
 
-  // Header
+  row:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4, flex: 1 },
+  rowTight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm - 2 },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+
+  // En-tête
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md + 4,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
   },
-  headerTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.bold,
-    color: colors.gray[900],
-  },
-  headerSub: {
+  avatarWrap: { position: 'relative' },
+  avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: colors.secondary },
+  avatarFallback: { backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' },
+  avatarInitials: {
+    fontFamily: fontFamily.heading,
     fontSize: fontSize.sm,
-    color: colors.gray[500],
-    marginTop: 1,
-  },
-  savedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#dcfce7',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radius.full,
-  },
-  savedText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: colors.success,
-  },
-
-  // Day Picker
-  dayStrip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    gap: spacing.xs,
-  },
-  dayChip: {
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minWidth: 52,
-  },
-  dayChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  dayNum: {
-    fontSize: fontSize.base,
     fontWeight: fontWeight.bold,
-    color: colors.gray[700],
-  },
-  dayNumActive: {
-    color: colors.white,
-  },
-  dayName: {
-    fontSize: fontSize.xs,
-    color: colors.gray[500],
-    marginTop: 1,
-  },
-  dayNameActive: {
-    color: 'rgba(255,255,255,0.8)',
-  },
-
-  // Class Selector
-  classStrip: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  classTab: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minWidth: 120,
-    alignItems: 'center',
-    ...shadow.sm,
-  },
-  classTabActive: {
-    backgroundColor: '#312e81',
-    borderColor: '#312e81',
-  },
-  classTabName: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-    color: colors.gray[700],
-  },
-  classTabNameActive: {
-    color: colors.white,
-  },
-  classTabSub: {
-    fontSize: fontSize.xs,
-    color: colors.gray[500],
-    marginTop: 2,
-  },
-  classTabSubActive: {
-    color: 'rgba(255,255,255,0.7)',
-  },
-
-  // Session Card
-  sessionCard: {
-    marginHorizontal: spacing.md,
-    backgroundColor: '#eff6ff',
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
-  },
-  sessionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  sessionInfo: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
     color: colors.primary,
   },
-
-  // Stats
-  statsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
+  presenceDot: {
+    position: 'absolute', bottom: -1, right: -1,
+    width: 13, height: 13, borderRadius: 7,
+    borderWidth: 2, borderColor: colors.surface,
   },
-  statBox: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-  },
-  statValue: {
-    fontSize: fontSize.xl,
+  teacherName: {
+    fontFamily: fontFamily.heading,
+    fontSize: fontSize.base,
     fontWeight: fontWeight.bold,
+    color: colors.text,
   },
-  statLabel: {
-    fontSize: 10,
-    fontWeight: fontWeight.medium,
-    marginTop: 2,
-    textAlign: 'center',
-  },
+  teacherRole: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText },
 
-  // Rate
-  rateCard: {
-    marginHorizontal: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    ...shadow.sm,
+  syncPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: radius.full, borderWidth: 1,
   },
-  rateHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  rateTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.gray[700],
-  },
-  rateValue: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.bold,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: colors.gray[100],
-    borderRadius: radius.full,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: radius.full,
-  },
+  syncText: { fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
 
-  // Quick Actions
-  quickRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  quickLabel: {
-    fontSize: fontSize.sm,
-    color: colors.gray[600],
-    fontWeight: fontWeight.medium,
-    marginRight: 4,
-  },
-  quickBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    borderRadius: radius.full,
-    borderWidth: 1,
-  },
-  quickBtnText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-  },
-
-  // Student List
-  listContainer: {
-    marginHorizontal: spacing.md,
-    backgroundColor: colors.surface,
+  classBar: {
+    marginTop: spacing.md,
+    backgroundColor: 'rgba(232,238,245,0.55)',
     borderRadius: radius.lg,
-    ...shadow.sm,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
+    padding: spacing.sm,
   },
-  listTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
-    color: colors.gray[500],
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.gray[50],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  studentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[50],
-    gap: spacing.sm,
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 12,
-    fontWeight: fontWeight.bold,
-  },
-  studentName: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.gray[800],
-  },
-  notePreview: {
-    fontSize: fontSize.xs,
-    color: colors.gray[500],
-    marginTop: 1,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: fontWeight.semibold,
-  },
-
-  // Save Button
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.xs,
-    marginHorizontal: spacing.md,
-    paddingVertical: 14,
-    borderRadius: radius.lg,
+  classBadge: {
+    width: 30, height: 30, borderRadius: radius.sm,
     backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  classBadgeText: {
+    fontFamily: fontFamily.heading, fontSize: 10,
+    fontWeight: fontWeight.bold, color: colors.white,
+  },
+  classTitle: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  classMeta: { fontFamily: fontFamily.body, fontSize: 10, color: colors.mutedText, marginTop: 1 },
+
+  content: {
+    paddingHorizontal: spacing.md + 4,
+    paddingTop: spacing.md,
+    paddingBottom: 190,
+    gap: spacing.md + 2,
+  },
+
+  // Rail des créneaux
+  slotCard: {
+    minWidth: 150,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1, borderColor: colors.border,
+    padding: spacing.sm + 4,
+    ...shadow.sm,
+  },
+  slotCardActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  slotTime: { fontFamily: fontFamily.body, fontSize: 10, color: colors.mutedText },
+  slotClass: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.base,
+    fontWeight: fontWeight.bold, color: colors.text, marginTop: 4,
+  },
+  slotSubject: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText, marginTop: 1 },
+  nowTag: {
+    marginTop: spacing.sm, alignSelf: 'flex-start',
+    backgroundColor: 'rgba(15,118,110,0.12)',
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4,
+  },
+  nowTagText: {
+    fontFamily: fontFamily.bodySemi, fontSize: 9,
+    fontWeight: fontWeight.bold, color: colors.secondary, letterSpacing: 0.4,
+  },
+
+  // Bandeau d'appel
+  heroCard: {
+    backgroundColor: colors.secondary,
+    borderRadius: radius.xl,
+    padding: spacing.md,
     ...shadow.md,
   },
-  saveBtnDone: {
-    backgroundColor: colors.success,
+  liveTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.20)',
+    paddingHorizontal: 10, paddingVertical: 3, borderRadius: radius.full,
   },
-  saveBtnText: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-    color: colors.white,
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#6EE7B7' },
+  liveText: {
+    fontFamily: fontFamily.bodySemi, fontSize: 10,
+    fontWeight: fontWeight.bold, color: colors.white,
   },
-
-  // Modal
-  modal: {
-    flex: 1,
-    backgroundColor: colors.background,
+  heroTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold, color: colors.white, marginTop: spacing.sm,
   },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.surface,
+  heroSub: {
+    fontFamily: fontFamily.body, fontSize: fontSize.xs,
+    color: 'rgba(255,255,255,0.85)', marginTop: 2,
   },
-  modalTitle: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-    color: colors.gray[900],
+  heroIcon: {
+    width: 48, height: 48, borderRadius: radius.lg,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  modalCancel: {
-    paddingVertical: 4,
-    paddingHorizontal: spacing.xs,
+  heroActions: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    marginTop: spacing.md, paddingTop: spacing.sm + 4,
+    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.20)',
   },
-  modalCancelText: {
-    fontSize: fontSize.base,
-    color: colors.gray[500],
-  },
-  modalConfirm: {
-    paddingVertical: 4,
-    paddingHorizontal: spacing.xs,
-  },
-  modalConfirmText: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-    color: colors.primary,
-  },
-  modalStudentCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    marginBottom: spacing.md,
+  heroPrimaryBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: colors.white, paddingVertical: spacing.sm + 2, borderRadius: radius.lg,
     ...shadow.sm,
   },
-  modalAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.full,
-    backgroundColor: '#eff6ff',
-    alignItems: 'center',
-    justifyContent: 'center',
+  heroPrimaryText: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.secondary,
   },
-  modalAvatarText: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-    color: colors.primary,
+  heroGhostBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: spacing.sm + 4, paddingVertical: spacing.sm + 2,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(255,255,255,0.20)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.30)',
   },
-  modalStudentName: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.bold,
-    color: colors.gray[900],
+  heroGhostText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold, color: colors.white,
   },
-  modalStudentSub: {
-    fontSize: fontSize.sm,
-    color: colors.gray[500],
-    marginTop: 2,
+
+  lockBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: 'rgba(194,65,59,0.08)',
+    borderWidth: 1, borderColor: 'rgba(194,65,59,0.25)',
+    borderRadius: radius.lg, padding: spacing.sm + 4,
   },
-  modalSection: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.gray[600],
-    marginBottom: spacing.xs,
-    marginTop: spacing.sm,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  lockText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.danger },
+
+  hint: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText },
+  linkText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold, color: colors.primary,
   },
-  statusPicker: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    flexWrap: 'wrap',
-  },
-  statusOption: {
-    flex: 1,
-    minWidth: '45%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    padding: spacing.sm,
-    borderRadius: radius.md,
+  bold: { fontFamily: fontFamily.bodySemi, fontWeight: fontWeight.bold, color: colors.text },
+
+  // Ligne élève
+  studentRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl,
+    padding: spacing.sm + 4,
+    gap: spacing.sm,
   },
-  statusOptionLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
+  studentAvatar: { width: 40, height: 40, borderRadius: 20 },
+  studentName: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.text,
   },
-  noteInput: {
+  studentMeta: { fontFamily: fontFamily.body, fontSize: 11, color: colors.mutedText, marginTop: 1 },
+  statusPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.md,
+    ...shadow.sm,
+  },
+  statusPillText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs, fontWeight: fontWeight.bold,
+  },
+  whatsappBtn: {
+    width: 32, height: 32, borderRadius: radius.md,
+    backgroundColor: 'rgba(15,118,110,0.08)',
+    borderWidth: 1, borderColor: 'rgba(15,118,110,0.25)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Notes
+  notesCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    minHeight: 80,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.sm,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl, padding: spacing.md,
+    gap: spacing.sm + 2,
   },
-  noteInputText: {
-    fontSize: fontSize.base,
-    color: colors.gray[800],
-    lineHeight: 22,
+  notesProgress: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText },
+  notesPercent: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.secondary,
   },
-  notePresets: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
+  progressTrack: { height: 8, borderRadius: 4, backgroundColor: colors.muted, overflow: 'hidden' },
+  progressFill: { height: 8, borderRadius: 4, backgroundColor: colors.secondary },
+  notesPrimaryBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: colors.primary, paddingVertical: spacing.sm + 2, borderRadius: radius.lg,
+    ...shadow.sm,
   },
-  notePresetBtn: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    borderRadius: radius.full,
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+  notesPrimaryText: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.white,
   },
-  notePresetText: {
-    fontSize: fontSize.xs,
-    color: colors.primary,
-    fontWeight: fontWeight.medium,
+  notesGhostBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: spacing.sm + 4, paddingVertical: spacing.sm + 2,
+    borderRadius: radius.lg, backgroundColor: colors.muted,
+  },
+  notesGhostText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold, color: colors.text,
+  },
+
+  // IA
+  aiCard: {
+    backgroundColor: 'rgba(20,93,160,0.05)',
+    borderWidth: 1, borderColor: 'rgba(20,93,160,0.20)',
+    borderRadius: radius.xl, padding: spacing.md,
+  },
+  aiIcon: {
+    width: 36, height: 36, borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    ...shadow.sm,
+  },
+  aiTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.text, flex: 1,
+  },
+  aiTag: {
+    backgroundColor: 'rgba(244,166,42,0.20)',
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4,
+  },
+  aiTagText: {
+    fontFamily: fontFamily.bodySemi, fontSize: 9,
+    fontWeight: fontWeight.bold, color: '#3B2605',
+  },
+  aiBody: {
+    fontFamily: fontFamily.body, fontSize: fontSize.xs,
+    color: colors.mutedText, marginTop: 4, lineHeight: 17,
+  },
+  aiBtn: {
+    marginTop: spacing.sm + 4,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: 'rgba(20,93,160,0.40)',
+    paddingVertical: spacing.sm + 2, borderRadius: radius.lg,
+    ...shadow.sm,
+  },
+  aiBtnText: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.primary,
+  },
+
+  // Barre d'enregistrement
+  submitBar: {
+    position: 'absolute', left: 0, right: 0, bottom: 84,
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1, borderTopColor: colors.border,
+    paddingHorizontal: spacing.md + 4,
+    paddingVertical: spacing.sm + 4,
+  },
+  submitCount: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText },
+  submitHint: {
+    fontFamily: fontFamily.bodySemi, fontSize: 11,
+    color: colors.secondary, marginTop: 2,
+  },
+  submitBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 4,
+    borderRadius: radius.lg, ...shadow.sm,
+  },
+  submitBtnText: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.white,
   },
 })

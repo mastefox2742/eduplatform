@@ -308,36 +308,41 @@ function fsBulletinsToClassData(fsBulletins: FSBulletin[]): ClassData[] {
   const byClass = new Map<string, { name: string; students: StudentBulletin[] }>()
 
   for (const b of fsBulletins) {
-    if (!byClass.has(b.classId)) {
-      byClass.set(b.classId, { name: b.className, students: [] })
+    // Un bulletin sans classe rattachée ne peut pas être regroupé.
+    const classId = b.class_id
+    if (!classId) continue
+
+    if (!byClass.has(classId)) {
+      byClass.set(classId, { name: b.class_name ?? 'Classe', students: [] })
     }
     const avg = b.average ?? 0
-    const initials = b.studentName
+    const initials = (b.student_name ?? '')
       .split(' ').slice(0, 2)
       .map((w: string) => w[0] ?? '')
       .join('').toUpperCase()
-    const submittedStr = b.submittedAt
-      ? ((b.submittedAt as any).toDate?.()?.toLocaleDateString('fr-FR') ?? '')
+    // PostgreSQL renvoie une date ISO ; Firestore renvoyait un Timestamp.
+    const submittedStr = b.submitted_at
+      ? new Date(b.submitted_at).toLocaleDateString('fr-FR')
       : ''
     // 'draft' n'existe pas côté direction — on le traite comme 'submitted'
     const safeStatus = (b.status === 'draft' ? 'submitted' : b.status) as BulletinStatus
 
-    byClass.get(b.classId)!.students.push({
+    byClass.get(classId)!.students.push({
       id:               b.id,
-      name:             b.studentName,
+      name:             b.student_name,
       avatar:           initials,
       rank:             0,              // calculé après
       totalStudents:    0,              // calculé après
       average:          avg,
       mention:          getMention(avg),
-      teacherComment:   b.appreciation,
-      directionComment: b.directorComment ?? '',
+      teacherComment:   b.appreciation ?? '',
+      directionComment: b.director_comment ?? '',
       status:           safeStatus,
       submittedAt:      submittedStr,
-      grades: b.assessments.map(a => ({
+      grades: (b.bulletin_assessments ?? []).map((a) => ({
         subject:     a.title,
         grade:       a.value ?? 0,
-        coefficient: a.coeff,
+        coefficient: a.coefficient,
         teacher:     'Professeur',
       })),
     })

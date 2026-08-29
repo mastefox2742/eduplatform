@@ -239,6 +239,207 @@ export async function uploadProfilePhoto(userId: string, localUri: string): Prom
 
 // ── OFFLINE QUEUE EXECUTOR (pour useSyncQueue) ────────────────────────────────
 
+
+// ── APPEL DE PRESENCE (verticale vie scolaire migree) ─────────────────────────
+
+export interface AttendanceSubmission {
+  schoolId:  string
+  classId:   string
+  subjectId: string | null
+  teacherId: string
+  periodId:  string | null
+  dateISO:   string
+  slotId:    string | null
+  records: Array<{
+    student_id:   string
+    student_name: string
+    status:       string
+    late_minutes: number | null
+    note:         string | null
+    reason_id:    string | null
+  }>
+}
+
+/**
+ * Enregistre un appel complet.
+ *
+ * Deux ecritures, dans cet ordre : la session puis ses lignes.
+ * L'upsert rend l'operation rejouable — indispensable, car la file
+ * hors ligne peut la soumettre plusieurs fois (§19.3).
+ *
+ * L'appartenance de l'enseignant a la classe n'est pas verifiee ici :
+ * c'est RLS qui refuse l'ecriture si `teaches_class()` est faux (§26).
+ * Un controle client serait contournable.
+ */
+export async function saveAttendanceSession(sub: AttendanceSubmission): Promise<void> {
+  const { data: session, error: sessionError } = await supabase
+    .from('attendance_sessions')
+    .upsert(
+      {
+        school_id:   sub.schoolId,
+        class_id:    sub.classId,
+        subject_id:  sub.subjectId,
+        teacher_id:  sub.teacherId,
+        period_id:   sub.periodId,
+        slot_id:     sub.slotId,
+        date:        sub.dateISO,
+        saved_at:    new Date().toISOString(),
+      },
+      { onConflict: 'school_id,class_id,date,teacher_id' }
+    )
+    .select('id')
+    .single()
+
+  if (sessionError) throw new Error(sessionError.message)
+
+  const rows = sub.records.map((r) => ({
+    session_id:   session.id,
+    student_id:   r.student_id,
+    student_name: r.student_name,
+    status:       r.status,
+    late_minutes: r.late_minutes,
+    note:         r.note,
+    reason_id:    r.reason_id,
+  }))
+
+  const { error: recordsError } = await supabase
+    .from('attendance_records')
+    .upsert(rows, { onConflict: 'session_id,student_id' })
+
+  if (recordsError) throw new Error(recordsError.message)
+}
+
+
+// ── FILE DE VALIDATION DU DIRECTEUR ───────────────────────────────────────────
+// Cahier des charges §3.3, §13.3, §20.1.
+//
+// Un bulletin passe par : brouillon -> soumis -> controle -> valide -> publie.
+// Signer ne publie pas : la publication est un geste distinct, car c'est
+// elle qui rend le bulletin visible aux familles (§13.3).
+
+/**
+ * Valide et signe un bulletin de synthese.
+ *
+ * `signed_by` porte l'identite du signataire : c'est ce qui distingue
+ * une validation d'une signature, et ce qui figure sur le PDF.
+ */
+export async function signBulletinSummary(
+  summaryId: string,
+  signerId: string,
+  comment?: string
+): Promise<void> {
+  const now = new Date().toISOString()
+
+  const { error } = await supabase
+    .from('bulletin_summaries')
+    .update({
+      state:        'valide',
+      validated_by: signerId,
+      validated_at: now,
+      signed_by:    signerId,
+      ...(comment ? { general_comment: comment } : {}),
+    })
+    .eq('id', summaryId)
+
+  if (error) throw new Error(error.message)
+}
+
+/** Renvoie un bulletin a l'enseignant, avec le motif du refus. */
+export async function rejectBulletinSummary(
+  summaryId: string,
+  reason: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('bulletin_summaries')
+    .update({ state: 'rejete', general_comment: reason })
+    .eq('id', summaryId)
+
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * Publie un bulletin : c'est a cet instant qu'il devient visible par
+ * l'eleve et ses parents (§13.3). RLS s'appuie sur `state = 'publie'`.
+ */
+export async function publishBulletinSummary(summaryId: string): Promise<void> {
+  const { error } = await supabase
+    .from('bulletin_summaries')
+    .update({ state: 'publie', published_at: new Date().toISOString() })
+    .eq('id', summaryId)
+
+  if (error) throw new Error(error.message)
+}
+
+/** Signe une demande de document officiel. */
+export async function signDocumentRequest(
+  requestId: string,
+  signerId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('document_requests')
+    .update({
+      status:    'signe',
+      signed_by: signerId,
+      signed_at: new Date().toISOString(),
+    })
+    .eq('id', requestId)
+
+  if (error) throw new Error(error.message)
+}
+
+export async function refuseDocumentRequest(
+  requestId: string,
+  reason: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('document_requests')
+    .update({ status: 'refuse', refusal_reason: reason })
+    .eq('id', requestId)
+
+  if (error) throw new Error(error.message)
+}
+
+
+// ── SAISIE DES NOTES ──────────────────────────────────────────────────────────
+
+export interface GradeBatch {
+  schoolId:     string
+  assessmentId: string
+  grades: Array<{
+    student_id: string
+    score:      number | null
+    state:      string
+  }>
+}
+
+/**
+ * Enregistre un lot de notes.
+ *
+ * L'upsert rend l'operation rejouable : la file hors ligne peut la
+ * soumettre plusieurs fois sans creer de doublon (§19.3). La contrainte
+ * unique (assessment_id, student_id) garantit une note par eleve.
+ *
+ * Le droit de saisie n'est pas verifie ici : RLS refuse l'ecriture si
+ * l'evaluation n'appartient pas a l'enseignant ou si la periode est
+ * fermee (§26). Un controle client serait contournable.
+ */
+export async function saveGradeBatch(batch: GradeBatch): Promise<void> {
+  const rows = batch.grades.map((g) => ({
+    school_id:     batch.schoolId,
+    assessment_id: batch.assessmentId,
+    student_id:    g.student_id,
+    score:         g.score,
+    state:         g.state,
+    updated_at:    new Date().toISOString(),
+  }))
+
+  const { error } = await supabase
+    .from('grades')
+    .upsert(rows, { onConflict: 'assessment_id,student_id' })
+
+  if (error) throw new Error(error.message)
+}
+
 export type SupabaseOp =
   | { type: 'submitBulletin';      schoolId: string; data: Parameters<typeof submitBulletin>[1] }
   | { type: 'saveAttendance';      schoolId: string; classId: string; dateISO: string; teacherId: string; records: any; meta: any }

@@ -1,396 +1,629 @@
 /**
- * Accueil — Dashboard étudiant
+ * Accueil élève.
+ * Repris de la maquette `design/maquettes/eleve---dashboard.html`.
+ *
+ * Cahier des charges §15.1, §15.3, §15.5, §15.7, §19.
+ *
+ * L'écran s'adresse à des élèves de 10 à 18 ans : il doit être
+ * motivant sans être infantilisant, et honnête sur ce qui attend.
+ *
+ * §15.7 impose « sans classement humiliant ni exposition publique
+ * non consentie ». Le rang n'apparaît donc que si l'établissement
+ * l'a explicitement autorisé (`grading_rules.rank_visible_student`),
+ * et jamais celui des autres élèves.
  */
+import { useState } from 'react'
 import {
-  ScrollView, View, Text, StyleSheet,
-  TouchableOpacity, Dimensions, StatusBar,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  Image, ActivityIndicator, RefreshControl,
 } from 'react-native'
-import { useMemo } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { useRouter } from 'expo-router'
+import { router } from 'expo-router'
+import { colors, spacing, radius, fontSize, fontWeight, fontFamily, shadow } from '@/theme'
 import { useAuth } from '@/hooks/useAuth'
-import { BurgerMenu } from '@/components/ui/BurgerMenu'
-import { spacing, radius, fontSize, fontWeight, shadow, useTheme } from '@/theme'
+import {
+  useStudentDashboard, dueLabel, subjectTag,
+  type TodayCourse, type HomeworkItem,
+} from '@/hooks/useStudentDashboard'
+import { EmptyState, Rail } from '@/components/ui/DesignSystem'
+import { BottomNav, STUDENT_TABS } from '@/components/ui/BottomNav'
 
-// We extract QUICK_STATS, QUICK_ACCESS, RECENT_COURSES, TODAY_SCHEDULE outside if possible,
-// but they rely on `colors`. We can pass `colors` to them or just map them inside the component.
-// Since they are defined outside, let's just leave the icons/base colors as is for the demo
-// (or assume they adapt).
-// Wait, `QUICK_STATS` uses `colors.primary`. I should keep `import { colors as staticColors } from '@/theme'` just for the static constants if needed, or I can define them inside the component.
-
-
-const { width: SCREEN_W } = Dimensions.get('window')
-const CARD_SIZE = (SCREEN_W - spacing.lg * 2 - spacing.sm) / 2
-
-// ── Données ───────────────────────────────────────────────────────────────────
-
-const getQuickStats = (colors: any) => [
-  { label: 'Moyenne',   value: '14.2', unit: '/20',     color: colors.primary,  icon: 'trending-up' as const },
-  { label: 'Absences',  value: '2',    unit: 'jours',   color: '#F59E0B',       icon: 'time'        as const },
-  { label: 'Cours',     value: '6',    unit: '/semaine', color: '#8b5cf6',      icon: 'book'        as const },
-  { label: 'Exercices', value: '3',    unit: 'à faire', color: colors.error,    icon: 'pencil'      as const },
-]
-
-const QUICK_ACCESS = [
-  { label: 'Mes Cours',       sub: '6 cours disponibles',    icon: 'book'   as const, color: '#3b82f6', route: '/(student)/courses'   },
-  { label: 'Exercices',       sub: '3 exercices à faire',    icon: 'pencil' as const, color: '#8b5cf6', route: '/(student)/exercises', alert: true },
-  { label: 'Frais scolaires', sub: '2 paiements en attente', icon: 'wallet' as const, color: '#ef4444', route: '/(student)/finances',  alert: true },
-  { label: 'Mon Bulletin',    sub: 'Moyenne : 14.2/20',      icon: 'star'   as const, color: '#10b981', route: '/(student)/grades'    },
-]
-
-const RECENT_COURSES = [
-  { subject: 'Mathématiques', title: 'Les Dérivées',     emoji: '📐', progress: 75 },
-  { subject: 'Physique',      title: 'Lois de Newton',   emoji: '⚡', progress: 40 },
-  { subject: 'Français',      title: 'L\'Argumentation', emoji: '✍️', progress: 90 },
-]
-
-const TODAY_SCHEDULE = [
-  { time: '08h00', subject: 'Mathématiques', room: 'Salle 12', teacher: 'M. Leblanc',  color: '#3b82f6' },
-  { time: '10h00', subject: 'Français',      room: 'Salle 05', teacher: 'Mme Diallo',  color: '#8b5cf6' },
-  { time: '14h00', subject: 'SVT',           room: 'Labo 2',   teacher: 'M. Traoré',   color: '#10b981' },
-  { time: '16h00', subject: 'Anglais',       room: 'Salle 09', teacher: 'Mme Martin',  color: '#f59e0b' },
-]
+function initials(name: string): string {
+  return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase()
+}
 
 // ── Écran ─────────────────────────────────────────────────────────────────────
 
-export default function HomeScreen() {
+export default function StudentHomeScreen() {
   const { profile } = useAuth()
-  const router      = useRouter()
-  const { colors, isDark } = useTheme()
-  const styles = useMemo(() => createStyles(colors, isDark), [colors, isDark])
+  const {
+    studentName, className, periodLabel,
+    courses, homework, grades, progress,
+    average, rank, classSize, absencesUnjustified, lateCount,
+    isLoading, error, pendingCount, isOnline, reload,
+  } = useStudentDashboard()
 
-  const QUICK_STATS = useMemo(() => getQuickStats(colors), [colors])
+  const [refreshing, setRefreshing] = useState(false)
 
-  const fullName  = profile?.displayName ?? 'Élève'
-  const initials  = fullName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-  const hour      = new Date().getHours()
-  const greeting  = hour < 12 ? 'Bonjour' : hour < 18 ? 'Bon après-midi' : 'Bonsoir'
-  const classe    = (profile as any)?.classe ?? '3ème B'
+  const firstName = (studentName ?? '').split(' ')[0] || 'toi'
+  const remaining = courses.filter((c) => c.phase !== 'done').length
+  const urgent = homework.filter((h) => h.isUrgent).length
+  const currentCourse = courses.find((c) => c.phase === 'now')
+
+  const today = new Date().toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  })
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={s.screen} edges={['top']}>
+        <View style={s.center}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={s.centerText}>Chargement de ta journée…</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} backgroundColor={colors.surface} />
-
-      {/* ── Barre de navigation ──────────────────────── */}
-      <View style={styles.topBar}>
-        <View style={styles.topLeft}>
-          <View style={styles.schoolLogo}>
-            <Ionicons name="school" size={20} color={colors.white} />
+    <SafeAreaView style={s.screen} edges={['top']}>
+      {/* ── En-tête ─────────────────────────────────────────────── */}
+      <View style={s.header}>
+        <View style={s.headerTop}>
+          <View style={s.headerLeft}>
+            <View style={s.avatarWrap}>
+              {profile?.photoUrl ? (
+                <Image source={{ uri: profile.photoUrl }} style={s.avatar} />
+              ) : (
+                <View style={[s.avatar, s.avatarFallback]}>
+                  <Text style={s.avatarInitials}>{initials(studentName ?? 'E')}</Text>
+                </View>
+              )}
+              <View style={s.levelBadge}>
+                <Text style={s.levelText}>Niv. {progress.level}</Text>
+              </View>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.greeting} numberOfLines={1}>Salut, {firstName} !</Text>
+              <Text style={s.subtitle} numberOfLines={1}>
+                {className ?? 'Classe'}{periodLabel ? ` · ${periodLabel}` : ''}
+              </Text>
+            </View>
           </View>
-          <View>
-            <Text style={styles.schoolName}>EduPlatform</Text>
-            <Text style={styles.schoolSub}>République du Congo</Text>
+
+          <View style={s.headerRight}>
+            <View style={s.xpPill}>
+              <Ionicons name="flame" size={13} color="#DB8F14" />
+              <Text style={s.xpText}>{progress.xp} XP</Text>
+            </View>
+            <TouchableOpacity
+              accessibilityLabel="Notifications"
+              style={s.bellBtn}
+              onPress={() => router.push('/(student)/profile')}
+            >
+              <Ionicons name="notifications-outline" size={18} color={colors.text} />
+            </TouchableOpacity>
           </View>
         </View>
-        <View style={styles.topRight}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="notifications-outline" size={22} color={colors.gray[700]} />
-            <View style={styles.notifDot} />
-          </TouchableOpacity>
-          <BurgerMenu iconColor={colors.gray[700]} />
+
+        {/* État hors ligne + série : ce qui rassure et ce qui motive. */}
+        <View style={s.statusBar}>
+          <View style={s.statusLeft}>
+            <View style={[s.statusDot, { backgroundColor: isOnline ? colors.secondary : colors.gray[400] }]} />
+            <Text style={s.statusText}>
+              {pendingCount > 0
+                ? `${pendingCount} envoi${pendingCount > 1 ? 's' : ''} en attente`
+                : isOnline ? 'Tout est à jour' : 'Hors ligne · cours enregistrés'}
+            </Text>
+          </View>
+          {progress.streak > 0 && (
+            <Text style={s.streakText}>Série de {progress.streak} jour{progress.streak > 1 ? 's' : ''} 🔥</Text>
+          )}
         </View>
       </View>
 
-      {/* Séparateur */}
-      <View style={styles.divider} />
+      <ScrollView
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true)
+              await reload()
+              setRefreshing(false)
+            }}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {error && (
+          <View style={s.errorBanner}>
+            <Ionicons name="close-circle" size={16} color={colors.danger} />
+            <Text style={s.errorText}>{error}</Text>
+          </View>
+        )}
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-
-        {/* ── Bienvenue ────────────────────────────────── */}
-        <View style={styles.welcomeSection}>
-          <View style={styles.welcomeLeft}>
-            <Text style={styles.greetingText}>{greeting},</Text>
-            <Text style={styles.welcomeName}>{fullName}</Text>
-            <View style={styles.badgesRow}>
-              <View style={styles.classBadge}>
-                <Ionicons name="school-outline" size={12} color={colors.primary} />
-                <Text style={styles.classBadgeText}>{classe}</Text>
-              </View>
-              <View style={styles.xpBadge}>
-                <Ionicons name="star" size={12} color="#F59E0B" />
-                <Text style={styles.xpText}>Lvl 12 (1250 XP)</Text>
-              </View>
+        {/* ── Planning du jour ────────────────────────────────────── */}
+        <View>
+          <View style={s.sectionHead}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.sectionTitle}>Planning du jour</Text>
+              <Text style={s.sectionSub}>
+                {today.charAt(0).toUpperCase() + today.slice(1)}
+                {courses.length > 0 ? ` · ${remaining} cours restant${remaining > 1 ? 's' : ''}` : ''}
+              </Text>
             </View>
-          </View>
-          <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitials}>{initials}</Text>
-          </View>
-        </View>
-
-        {/* ── Progression Gamifiée (XP) ────────────────── */}
-        <View style={styles.xpContainer}>
-          <View style={styles.xpHeader}>
-            <Text style={styles.xpTitle}>Progression vers le Niveau 13</Text>
-            <Text style={styles.xpPoints}>1250 / 1500 XP</Text>
-          </View>
-          <View style={styles.xpBg}>
-            <View style={[styles.xpFill, { width: '83%' }]} />
-          </View>
-          <Text style={styles.xpSubtitle}>Gagne de l'XP en terminant tes exercices !</Text>
-        </View>
-
-        {/* ── Alerte frais ─────────────────────────────── */}
-        <TouchableOpacity
-          style={styles.alertBanner}
-          onPress={() => router.push('/(student)/finances' as any)}
-          activeOpacity={0.8}
-        >
-          <Text style={{ fontSize: 18 }}>⚠️</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.alertTitle}>Frais scolaires en attente</Text>
-            <Text style={styles.alertSub}>Mensualité janvier 2026 non reçue</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.error} />
-        </TouchableOpacity>
-
-        {/* ── Stats 2×2 carrés ─────────────────────────── */}
-        <View style={styles.sectionWrap}>
-          <Text style={styles.sectionTitle}>Aperçu</Text>
-          <View style={styles.statsGrid}>
-            {QUICK_STATS.map((stat) => (
-              <View key={stat.label} style={[styles.statCard, { borderTopColor: stat.color }]}>
-                <View style={[styles.statIcon, { backgroundColor: stat.color + '18' }]}>
-                  <Ionicons name={stat.icon} size={22} color={stat.color} />
-                </View>
-                <Text style={[styles.statValue, { color: stat.color }]}>{stat.value}</Text>
-                <Text style={styles.statUnit}>{stat.unit}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
+            {currentCourse?.room && (
+              <View style={s.roomTag}>
+                <Text style={s.roomTagText}>{currentCourse.room}</Text>
               </View>
-            ))}
+            )}
           </View>
+
+          {courses.length === 0 ? (
+            <EmptyState
+              icon="calendar-outline"
+              title="Aucun cours aujourd’hui"
+              detail="Profites-en pour prendre de l’avance sur tes devoirs."
+            />
+          ) : (
+            <Rail>
+              {courses.map((c) => <CourseCard key={c.id} course={c} />)}
+            </Rail>
+          )}
         </View>
 
-        {/* ── Accès rapide ─────────────────────────────── */}
-        <View style={styles.sectionWrap}>
-          <Text style={styles.sectionTitle}>Accès rapide</Text>
-          <View style={styles.quickGrid}>
-            {QUICK_ACCESS.map((item) => (
-              <TouchableOpacity
-                key={item.label}
-                style={styles.quickCard}
-                onPress={() => router.push(item.route as any)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.quickIcon, { backgroundColor: item.color + '15' }]}>
-                  <Ionicons name={item.icon} size={22} color={item.color} />
-                  {item.alert && <View style={styles.quickDot} />}
-                </View>
-                <Text style={styles.quickLabel} numberOfLines={1}>{item.label}</Text>
-                <Text style={styles.quickSub} numberOfLines={2}>{item.sub}</Text>
+        {/* ── Devoirs ─────────────────────────────────────────────── */}
+        <View>
+          <View style={s.sectionHead}>
+            <Text style={s.sectionTitle}>Devoirs à rendre</Text>
+            {urgent > 0 && (
+              <Text style={s.urgentText}>{urgent} urgent{urgent > 1 ? 's' : ''}</Text>
+            )}
+          </View>
+
+          {homework.length === 0 ? (
+            <EmptyState
+              icon="checkmark-done-circle-outline"
+              title="Rien à rendre"
+              detail="Aucun devoir en attente pour le moment."
+            />
+          ) : (
+            <View style={{ gap: spacing.sm + 2 }}>
+              {homework.slice(0, 4).map((h) => (
+                <HomeworkCard
+                  key={h.id}
+                  item={h}
+                  onPress={() => router.push('/(student)/devoirs')}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* ── Résultats ───────────────────────────────────────────── */}
+        {/* La moyenne n'apparaît qu'une fois le bulletin publié (§13.3).
+            Le rang, lui, dépend du choix de l'établissement (§15.7). */}
+        {(average != null || grades.length > 0) && (
+          <View>
+            <View style={s.sectionHead}>
+              <Text style={s.sectionTitle}>Mes résultats</Text>
+              <TouchableOpacity onPress={() => router.push('/(student)/grades')}>
+                <Text style={s.sectionAction}>Voir tout</Text>
               </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* ── Cours récents ────────────────────────────── */}
-        <View style={styles.sectionWrap}>
-          <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Derniers cours</Text>
-            <TouchableOpacity onPress={() => router.push('/(student)/courses' as any)}>
-              <Text style={styles.seeAll}>Voir tout →</Text>
-            </TouchableOpacity>
-          </View>
-          {RECENT_COURSES.map((c, i) => (
-            <TouchableOpacity
-              key={i}
-              style={styles.courseCard}
-              onPress={() => router.push('/(student)/courses' as any)}
-              activeOpacity={0.75}
-            >
-              <View style={styles.courseEmoji}>
-                <Text style={{ fontSize: 22 }}>{c.emoji}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.courseSubject}>{c.subject}</Text>
-                <Text style={styles.courseTitle}>{c.title}</Text>
-                <View style={styles.progressBg}>
-                  <View style={[styles.progressFill, { width: `${c.progress}%` as any }]} />
-                </View>
-              </View>
-              <Text style={styles.coursePct}>{c.progress}%</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* ── Emploi du temps du jour ──────────────────── */}
-        <View style={styles.sectionWrap}>
-          <Text style={styles.sectionTitle}>Aujourd'hui</Text>
-          {TODAY_SCHEDULE.map((slot, i) => (
-            <View key={i} style={styles.scheduleItem}>
-              <Text style={styles.scheduleTime}>{slot.time}</Text>
-              <View style={styles.scheduleLine}>
-                <View style={[styles.scheduleDot, { backgroundColor: slot.color }]} />
-                {i < TODAY_SCHEDULE.length - 1 && <View style={styles.scheduleConnector} />}
-              </View>
-              <View style={[styles.scheduleCard, { borderLeftColor: slot.color }]}>
-                <Text style={styles.scheduleSubject}>{slot.subject}</Text>
-                <Text style={styles.scheduleMeta}>{slot.room} · {slot.teacher}</Text>
-              </View>
             </View>
-          ))}
-        </View>
 
+            {average != null && (
+              <View style={s.averageCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.averageLabel}>Moyenne générale</Text>
+                  <View style={s.averageRow}>
+                    <Text style={s.averageValue}>{average.toFixed(2)}</Text>
+                    <Text style={s.averageMax}>/20</Text>
+                  </View>
+                </View>
+
+                {rank != null && classSize != null && (
+                  <View style={s.rankBox}>
+                    <Text style={s.rankValue}>{rank}<Text style={s.rankSup}>e</Text></Text>
+                    <Text style={s.rankLabel}>sur {classSize}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {grades.length > 0 && (
+              <View style={{ gap: spacing.sm, marginTop: average != null ? spacing.sm + 2 : 0 }}>
+                {grades.map((g) => {
+                  const on20 = (g.score / g.maxScore) * 20
+                  const tone = on20 >= 14 ? colors.secondary : on20 >= 10 ? colors.text : colors.danger
+                  return (
+                    <View key={g.id} style={s.gradeRow}>
+                      <View style={s.subjectTag}>
+                        <Text style={s.subjectTagText}>{subjectTag(g.subjectName)}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.gradeTitle} numberOfLines={1}>{g.assessmentTitle}</Text>
+                        <Text style={s.gradeMeta} numberOfLines={1}>
+                          {g.subjectName ?? '—'} · Coeff. {g.coefficient}
+                        </Text>
+                      </View>
+                      <Text style={[s.gradeScore, { color: tone }]}>
+                        {g.score}/{g.maxScore}
+                      </Text>
+                    </View>
+                  )
+                })}
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* ── Assiduité ───────────────────────────────────────────── */}
+        {(absencesUnjustified > 0 || lateCount > 0) && (
+          <View style={s.attendanceCard}>
+            <Ionicons name="calendar-outline" size={19} color={colors.mutedText} />
+            <Text style={s.attendanceText}>
+              {absencesUnjustified > 0 && `${absencesUnjustified} absence${absencesUnjustified > 1 ? 's' : ''}`}
+              {absencesUnjustified > 0 && lateCount > 0 && ' · '}
+              {lateCount > 0 && `${lateCount} retard${lateCount > 1 ? 's' : ''}`}
+              {' ce trimestre'}
+            </Text>
+            <TouchableOpacity onPress={() => router.push('/(student)/absences')}>
+              <Ionicons name="chevron-forward" size={17} color={colors.gray[400]} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Tuteur IA ───────────────────────────────────────────── */}
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => router.push('/(student)/courses')}
+          style={s.aiCard}
+        >
+          <View style={s.aiIcon}>
+            <Ionicons name="sparkles" size={19} color={colors.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.aiTitle}>Tuteur IA Projetto1</Text>
+            <Text style={s.aiBody}>
+              Une notion qui résiste ? Demande une explication, pas la réponse.
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.primary} />
+        </TouchableOpacity>
       </ScrollView>
+
+      <BottomNav
+        tabs={STUDENT_TABS.map((t) =>
+          t.label === 'Devoirs' ? { ...t, dot: urgent > 0 } : t
+        )}
+      />
     </SafeAreaView>
+  )
+}
+
+// ── Carte de cours ────────────────────────────────────────────────────────────
+
+function CourseCard({ course }: { course: TodayCourse }) {
+  const isNow = course.phase === 'now'
+  const isDone = course.phase === 'done'
+
+  return (
+    <View style={[s.courseCard, isNow && s.courseCardNow, isDone && { opacity: 0.55 }]}>
+      <View style={s.courseTop}>
+        <Text style={[s.courseTime, isNow && { color: 'rgba(255,255,255,0.9)' }]}>
+          {course.startTime} - {course.endTime}
+        </Text>
+        <View style={[s.coursePhase, isNow && { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
+          <Text style={[s.coursePhaseText, isNow && { color: colors.white }]}>
+            {isNow ? 'EN COURS' : isDone ? 'Terminé' : course.phase === 'soon' ? 'Bientôt' : 'Après-midi'}
+          </Text>
+        </View>
+      </View>
+
+      <Text style={[s.courseSubject, isNow && { color: colors.white }]} numberOfLines={1}>
+        {course.subjectName}
+      </Text>
+      <Text style={[s.courseTeacher, isNow && { color: 'rgba(255,255,255,0.85)' }]} numberOfLines={1}>
+        {course.teacherName ?? 'Professeur'}
+        {course.room ? ` · ${course.room}` : ''}
+      </Text>
+    </View>
+  )
+}
+
+// ── Carte de devoir ───────────────────────────────────────────────────────────
+
+function HomeworkCard({ item, onPress }: { item: HomeworkItem; onPress: () => void }) {
+  const tone = item.isSubmitted ? colors.secondary
+    : item.daysLeft < 0 ? colors.danger
+    : item.isUrgent ? '#A96A0C'
+    : colors.mutedText
+
+  return (
+    <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={s.hwCard}>
+      <View style={s.subjectTag}>
+        <Text style={s.subjectTagText}>{subjectTag(item.subjectName)}</Text>
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <Text style={s.hwTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={s.hwMeta} numberOfLines={1}>
+          {item.teacherName ?? 'Professeur'} · {dueLabel(item.daysLeft, item.dueTime)}
+        </Text>
+      </View>
+
+      {item.isSubmitted ? (
+        <View style={s.hwDone}>
+          <Ionicons name="checkmark" size={13} color={colors.secondary} />
+          <Text style={s.hwDoneText}>Rendu</Text>
+        </View>
+      ) : (
+        <Text style={[s.hwDue, { color: tone }]}>{dueLabel(item.daysLeft, item.dueTime)}</Text>
+      )}
+    </TouchableOpacity>
   )
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 
-const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  scroll:    { paddingBottom: 40 },
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  centerText: { fontFamily: fontFamily.body, fontSize: fontSize.sm, color: colors.mutedText },
 
-  // Top bar
-  topBar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg, paddingVertical: 10,
+  // En-tête
+  header: {
     backgroundColor: colors.surface,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md + 4,
+    paddingTop: spacing.sm, paddingBottom: spacing.sm + 4,
   },
-  topLeft:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  schoolLogo: {
-    width: 40, height: 40, borderRadius: radius.md,
-    backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
+  headerTop: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', gap: spacing.sm,
   },
-  schoolName: { fontSize: fontSize.base, fontWeight: fontWeight.bold, color: colors.gray[900] },
-  schoolSub:  { fontSize: 10, color: colors.gray[500] },
-  topRight:   { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  iconBtn: {
-    width: 40, height: 40,
-    alignItems: 'center', justifyContent: 'center',
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 4, flex: 1 },
+  avatarWrap: { position: 'relative' },
+  avatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: colors.primary },
+  avatarFallback: { backgroundColor: colors.muted, alignItems: 'center', justifyContent: 'center' },
+  avatarInitials: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.primary,
   },
-  notifDot: {
-    position: 'absolute', top: 8, right: 6,
-    width: 8, height: 8, borderRadius: 4,
-    backgroundColor: colors.error,
+  levelBadge: {
+    position: 'absolute', bottom: -5, right: -8,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 5, paddingVertical: 1,
+    borderRadius: radius.full,
     borderWidth: 1.5, borderColor: colors.surface,
   },
-  divider: { height: 1, backgroundColor: colors.border },
+  levelText: {
+    fontFamily: fontFamily.heading, fontSize: 9,
+    fontWeight: fontWeight.extrabold, color: '#3B2605',
+  },
+  greeting: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.base,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  subtitle: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText, marginTop: 1 },
 
-  // Welcome
-  welcomeSection: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.lg, paddingVertical: spacing.lg,
-    marginBottom: spacing.sm,
-    borderBottomWidth: 3, borderBottomColor: colors.primary + '20',
-  },
-  welcomeLeft:   { flex: 1 },
-  greetingText:  { fontSize: fontSize.sm, color: colors.gray[500] },
-  welcomeName:   { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, color: colors.gray[900], marginVertical: 4, lineHeight: 30 },
-  badgesRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 4,
-  },
-  classBadge: {
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  xpPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.primary + '12',
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: radius.full,
+    backgroundColor: 'rgba(244,166,42,0.12)',
+    borderWidth: 1, borderColor: 'rgba(244,166,42,0.30)',
+    paddingHorizontal: 9, paddingVertical: 5, borderRadius: radius.full,
   },
-  classBadgeText: { fontSize: fontSize.xs, color: colors.primary, fontWeight: fontWeight.semibold },
-  xpBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: '#F59E0B12',
-    paddingHorizontal: 8, paddingVertical: 3,
-    borderRadius: radius.full,
+  xpText: {
+    fontFamily: fontFamily.heading, fontSize: 11,
+    fontWeight: fontWeight.bold, color: '#A96A0C',
   },
-  xpText: { fontSize: fontSize.xs, color: '#F59E0B', fontWeight: fontWeight.bold },
-  avatarCircle: {
-    width: 60, height: 60, borderRadius: 30,
-    backgroundColor: colors.primary,
+  bellBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.muted,
     alignItems: 'center', justifyContent: 'center',
-    marginLeft: spacing.md,
+  },
+
+  statusBar: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: 'rgba(20,93,160,0.05)',
+    borderWidth: 1, borderColor: 'rgba(20,93,160,0.15)',
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm + 4, paddingVertical: spacing.sm,
+    marginTop: spacing.sm + 4, gap: spacing.sm,
+  },
+  statusLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusText: {
+    flex: 1, fontFamily: fontFamily.bodyMedium,
+    fontSize: fontSize.xs, color: colors.text,
+  },
+  streakText: {
+    fontFamily: fontFamily.bodySemi, fontSize: 11,
+    fontWeight: fontWeight.semibold, color: colors.primary,
+  },
+
+  content: {
+    paddingHorizontal: spacing.md + 4,
+    paddingTop: spacing.md,
+    paddingBottom: 120,
+    gap: spacing.md + 2,
+  },
+
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: 'rgba(194,65,59,0.08)',
+    borderWidth: 1, borderColor: 'rgba(194,65,59,0.25)',
+    borderRadius: radius.lg, padding: spacing.sm + 4,
+  },
+  errorText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.danger },
+
+  // Sections
+  sectionHead: {
+    flexDirection: 'row', alignItems: 'flex-end',
+    justifyContent: 'space-between', marginBottom: spacing.sm + 2, gap: spacing.sm,
+  },
+  sectionTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  sectionSub: { fontFamily: fontFamily.body, fontSize: 11, color: colors.mutedText, marginTop: 1 },
+  sectionAction: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold, color: colors.primary,
+  },
+  urgentText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.danger,
+  },
+  roomTag: {
+    backgroundColor: 'rgba(20,93,160,0.10)',
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.full,
+  },
+  roomTagText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.primary,
+  },
+
+  // Cours
+  courseCard: {
+    minWidth: 165,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl, padding: spacing.sm + 4,
     ...shadow.sm,
   },
-  avatarInitials: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: colors.white },
+  courseCardNow: { backgroundColor: colors.primary, borderColor: colors.primary },
+  courseTop: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', gap: spacing.sm,
+  },
+  courseTime: { fontFamily: fontFamily.body, fontSize: 11, color: colors.mutedText },
+  coursePhase: {
+    backgroundColor: colors.muted,
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4,
+  },
+  coursePhaseText: {
+    fontFamily: fontFamily.bodySemi, fontSize: 9,
+    fontWeight: fontWeight.bold, color: colors.mutedText,
+  },
+  courseSubject: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.base,
+    fontWeight: fontWeight.bold, color: colors.text, marginTop: spacing.sm,
+  },
+  courseTeacher: {
+    fontFamily: fontFamily.body, fontSize: fontSize.xs,
+    color: colors.mutedText, marginTop: 2,
+  },
 
-  // Gamification (XP)
-  xpContainer: {
-    marginHorizontal: spacing.lg, marginBottom: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.md, ...shadow.sm,
+  // Devoirs
+  hwCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl, padding: spacing.sm + 4,
+    ...shadow.sm,
   },
-  xpHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm },
-  xpTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.gray[900] },
-  xpPoints: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: '#F59E0B' },
-  xpBg: { height: 8, backgroundColor: colors.gray[100], borderRadius: radius.full, overflow: 'hidden' },
-  xpFill: { height: '100%', backgroundColor: '#F59E0B', borderRadius: radius.full },
-  xpSubtitle: { fontSize: 10, color: colors.gray[500], marginTop: spacing.xs, fontStyle: 'italic' },
+  subjectTag: {
+    width: 34, height: 34, borderRadius: radius.md,
+    backgroundColor: 'rgba(20,93,160,0.08)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  subjectTagText: {
+    fontFamily: fontFamily.heading, fontSize: 10,
+    fontWeight: fontWeight.bold, color: colors.primary,
+  },
+  hwTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  hwMeta: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText, marginTop: 1 },
+  hwDue: { fontFamily: fontFamily.bodySemi, fontSize: 11, fontWeight: fontWeight.bold },
+  hwDone: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: 'rgba(15,118,110,0.10)',
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full,
+  },
+  hwDoneText: {
+    fontFamily: fontFamily.bodySemi, fontSize: 10,
+    fontWeight: fontWeight.bold, color: colors.secondary,
+  },
 
-  // Alert
-  alertBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    marginHorizontal: spacing.lg, marginBottom: spacing.md,
-    backgroundColor: isDark ? '#451a1a' : '#FEF2F2', borderRadius: radius.lg,
-    padding: spacing.md, borderWidth: 1, borderColor: isDark ? '#7f1d1d' : '#FECACA',
+  // Résultats
+  averageCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl, padding: spacing.md,
+    gap: spacing.md, ...shadow.sm,
   },
-  alertTitle: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.error },
-  alertSub:   { fontSize: fontSize.xs, color: '#DC2626', marginTop: 1 },
+  averageLabel: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText },
+  averageRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 2, marginTop: 2 },
+  averageValue: {
+    fontFamily: fontFamily.heading, fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.extrabold, color: colors.primary,
+  },
+  averageMax: {
+    fontFamily: fontFamily.body, fontSize: fontSize.sm,
+    color: colors.mutedText, marginBottom: 3,
+  },
+  rankBox: {
+    alignItems: 'center',
+    backgroundColor: colors.muted,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+  },
+  rankValue: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  rankSup: { fontSize: 10 },
+  rankLabel: { fontFamily: fontFamily.body, fontSize: 10, color: colors.mutedText },
 
-  // Section
-  sectionWrap:  { paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
-  sectionRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.gray[900], marginBottom: spacing.md },
-  seeAll:       { fontSize: fontSize.sm, color: colors.primary, fontWeight: fontWeight.medium },
+  gradeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.lg, padding: spacing.sm + 2,
+  },
+  gradeTitle: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold, color: colors.text,
+  },
+  gradeMeta: { fontFamily: fontFamily.body, fontSize: 11, color: colors.mutedText, marginTop: 1 },
+  gradeScore: { fontFamily: fontFamily.heading, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
 
-  // Stats 2×2
-  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  statCard: {
-    width: CARD_SIZE, height: CARD_SIZE,
-    backgroundColor: colors.surface, borderRadius: radius.xl,
-    padding: spacing.md, justifyContent: 'space-between',
-    borderTopWidth: 3, ...shadow.sm,
+  // Assiduité
+  attendanceCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl, padding: spacing.sm + 4,
   },
-  statIcon:  { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
-  statValue: { fontSize: fontSize['2xl'], fontWeight: fontWeight.bold, marginTop: 4 },
-  statUnit:  { fontSize: 10, color: colors.gray[400], marginTop: -2 },
-  statLabel: { fontSize: fontSize.xs, color: colors.gray[500], fontWeight: fontWeight.medium },
+  attendanceText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.text },
 
-  // Quick access
-  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  quickCard: {
-    flex: 1, minWidth: '44%', backgroundColor: colors.surface,
-    borderRadius: radius.lg, padding: spacing.md,
-    alignItems: 'flex-start', gap: 4, ...shadow.sm,
+  // IA
+  aiCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2,
+    backgroundColor: 'rgba(20,93,160,0.05)',
+    borderWidth: 1, borderColor: 'rgba(20,93,160,0.20)',
+    borderRadius: radius.xl, padding: spacing.md,
   },
-  quickIcon: {
-    width: 44, height: 44, borderRadius: radius.md,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  aiIcon: {
+    width: 38, height: 38, borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
   },
-  quickDot: {
-    position: 'absolute', top: 2, right: 2,
-    width: 10, height: 10, borderRadius: 5,
-    backgroundColor: colors.error, borderWidth: 1.5, borderColor: colors.surface,
+  aiTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.text,
   },
-  quickLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: colors.gray[900] },
-  quickSub:   { fontSize: fontSize.xs, color: colors.gray[500], lineHeight: 15 },
-
-  // Courses
-  courseCard: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surface, borderRadius: radius.lg,
-    padding: spacing.md, marginBottom: spacing.sm, ...shadow.sm,
+  aiBody: {
+    fontFamily: fontFamily.body, fontSize: fontSize.xs,
+    color: colors.mutedText, marginTop: 2, lineHeight: 16,
   },
-  courseEmoji:   { width: 44, height: 44, borderRadius: radius.md, backgroundColor: colors.gray[50], alignItems: 'center', justifyContent: 'center' },
-  courseSubject: { fontSize: fontSize.xs, color: colors.gray[500], fontWeight: fontWeight.medium },
-  courseTitle:   { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.gray[800], marginVertical: 2 },
-  progressBg:    { height: 4, backgroundColor: isDark ? colors.gray[800] : colors.gray[100], borderRadius: radius.full, overflow: 'hidden' },
-  progressFill:  { height: '100%', backgroundColor: colors.primary, borderRadius: radius.full },
-  coursePct:     { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.primary },
-
-  // Schedule
-  scheduleItem:     { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.xs },
-  scheduleTime:     { width: 52, paddingTop: 3, fontSize: fontSize.xs, color: colors.gray[500], fontWeight: fontWeight.medium },
-  scheduleLine:     { width: 20, alignItems: 'center', marginRight: spacing.sm },
-  scheduleDot:      { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
-  scheduleConnector:{ flex: 1, width: 2, backgroundColor: colors.gray[200], marginTop: 4, minHeight: 28 },
-  scheduleCard: {
-    flex: 1, backgroundColor: colors.surface, borderRadius: radius.md,
-    padding: spacing.sm, marginBottom: spacing.sm,
-    borderLeftWidth: 3, ...shadow.sm,
-  },
-  scheduleSubject: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.gray[800] },
-  scheduleMeta:    { fontSize: fontSize.xs, color: colors.gray[500], marginTop: 2 },
 })

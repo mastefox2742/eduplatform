@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { colors, spacing, radius, fontSize, fontWeight, shadow } from '@/theme'
 
 export default function TeacherProfileScreen() {
-  const { profile, logout } = useAuth()
+  const { profile, user, logout } = useAuth()
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
@@ -16,7 +16,7 @@ export default function TeacherProfileScreen() {
           <Text style={styles.avatarText}>{profile?.displayName?.charAt(0) ?? 'P'}</Text>
         </View>
         <Text style={styles.name}>{profile?.displayName ?? 'Professeur'}</Text>
-        <Text style={styles.email}>{profile?.email}</Text>
+        <Text style={styles.email}>{user?.email}</Text>
         <View style={styles.roleBadge}>
           <Ionicons name="school" size={14} color={colors.primary} />
           <Text style={styles.roleText}>Professeur · Collège Demo</Text>

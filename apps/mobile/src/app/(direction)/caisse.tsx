@@ -1,257 +1,838 @@
 /**
- * Guichet d'Encaissement — Direction
- * Enregistrement rapide des paiements espèces / chèques au secrétariat
- * Génération reçu PDF + envoi WhatsApp optionnel au parent
+ * Guichet d'encaissement — direction / gestionnaire.
+ *
+ * Cahier des charges §14.2, §14.3, §21.4.
+ *
+ * Trois principes, tous appris de ce que l'écran précédent faisait mal :
+ *
+ *  - **Un encaissement se rattache à une échéance.** On ne tape plus le
+ *    nom de l'élève à la main : on le cherche, on voit son solde, on
+ *    choisit la tranche à régler. Sans ce lien, l'argent entrait en
+ *    caisse mais la famille restait marquée « en retard ».
+ *  - **La caisse s'ouvre et se ferme** (§14.3). Sans session ouverte,
+ *    on n'encaisse pas ; à la fermeture, le caissier déclare ce qu'il a
+ *    compté et l'écart est constaté, pas dissimulé.
+ *  - **Le numéro de reçu vient de la base.** Un compteur côté client
+ *    produirait des doublons dès que deux guichets encaissent ensemble.
  */
-import { useState, useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Alert, ActivityIndicator, Switch, KeyboardAvoidingView, Platform,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Modal,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { httpsCallable } from 'firebase/functions'
-import { functions } from '@/config/firebase'
-import { useAuth } from '@/hooks/useAuth'
-import { colors, spacing, radius, fontSize, fontWeight } from '@/theme'
+import { colors, spacing, radius, fontSize, fontWeight, fontFamily, shadow } from '@/theme'
+import {
+  useCashRegister, type CashMethod, type OpenInstallment, type StudentHit,
+} from '@/hooks/useCashRegister'
+import { formatAmount } from '@/hooks/useInvoicePayment'
+import { EmptyState } from '@/components/ui/DesignSystem'
 
-type Method = 'especes' | 'cheque' | 'virement' | 'autre'
-
-const METHODS: { id: Method; label: string; icon: string }[] = [
-  { id: 'especes',  label: 'Espèces',  icon: '💵' },
-  { id: 'cheque',   label: 'Chèque',   icon: '🏦' },
-  { id: 'virement', label: 'Virement', icon: '📤' },
-  { id: 'autre',    label: 'Autre',    icon: '📌' },
+const METHODS: { id: CashMethod; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { id: 'especes',  label: 'Espèces',  icon: 'cash-outline' },
+  { id: 'cheque',   label: 'Chèque',   icon: 'document-text-outline' },
+  { id: 'virement', label: 'Virement', icon: 'swap-horizontal-outline' },
+  { id: 'autre',    label: 'Autre',    icon: 'ellipsis-horizontal-circle-outline' },
 ]
 
-const recordCashCF = httpsCallable(functions, 'recordCashPayment')
+function initials(name: string): string {
+  return name.split(' ').slice(0, 2).map((w) => w[0] ?? '').join('').toUpperCase()
+}
+
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+}
+
+// ── Écran ─────────────────────────────────────────────────────────────────────
 
 export default function CaisseScreen() {
-  const { profile } = useAuth()
-  const schoolId    = profile?.schoolId ?? 'demo'
+  const {
+    session, results, selected, installments,
+    isSearching, isLoading, isSaving, error,
+    search, selectStudent, clearStudent, openSession, closeSession, record,
+  } = useCashRegister()
 
-  const [form, setForm] = useState({
-    studentName:  '',
-    studentId:    '',
-    parentName:   '',
-    parentPhone:  '',
-    feeLabel:     '',
-    amount:       '',
-    currency:     'XOF',
-    method:       'especes' as Method,
-    chequeNum:    '',
-    bankName:     '',
-    notes:        '',
-    sendWhatsApp: false,
-  })
-  const [saving, setSaving] = useState(false)
+  const [query, setQuery] = useState('')
+  const [target, setTarget] = useState<OpenInstallment | null>(null)
+  const [amount, setAmount] = useState('')
+  const [method, setMethod] = useState<CashMethod>('especes')
+  const [chequeNum, setChequeNum] = useState('')
+  const [bankName, setBankName] = useState('')
+  const [payerName, setPayerName] = useState('')
+  const [payerPhone, setPayerPhone] = useState('')
+  const [openModal, setOpenModal] = useState(false)
+  const [closeModal, setCloseModal] = useState(false)
+  const [fundInput, setFundInput] = useState('')
 
-  // Derniers reçus émis (demo)
-  const [recent, setRecent] = useState([
-    { receiptNum: 'ESP-2026-00012', studentName: 'Marie Dubois',   amount: 45000, method: 'especes', currency: 'XOF' },
-    { receiptNum: 'ESP-2026-00011', studentName: 'Kwamé Asante',  amount: 45000, method: 'cheque',  currency: 'XOF' },
-    { receiptNum: 'ESP-2026-00010', studentName: 'Fatou Sow',      amount: 22500, method: 'especes', currency: 'XOF' },
-  ])
+  const onSearch = useCallback((text: string) => {
+    setQuery(text)
+    void search(text)
+  }, [search])
 
-  const handleSubmit = useCallback(async () => {
-    if (!form.studentName || !form.parentName || !form.feeLabel || !form.amount) {
-      Alert.alert('Champs manquants', 'Remplissez au minimum : élève, parent, objet et montant.')
+  function resetForm() {
+    setTarget(null)
+    setAmount('')
+    setChequeNum('')
+    setBankName('')
+    setPayerName('')
+    setPayerPhone('')
+  }
+
+  async function handleRecord() {
+    if (!target) return
+
+    const value = parseFloat(amount.replace(/\s/g, '').replace(',', '.'))
+    if (Number.isNaN(value)) {
+      Alert.alert('Montant invalide', 'Saisissez le montant reçu.')
+      return
+    }
+    if (!payerName.trim()) {
+      Alert.alert('Payeur requis', 'Indiquez qui a remis l’argent : le reçu porte son nom.')
       return
     }
 
-    setSaving(true)
-    try {
-      if (schoolId === 'demo') {
-        await new Promise(r => setTimeout(r, 800))
-        const demoNum = `ESP-2026-${String(recent.length + 1).padStart(5, '0')}`
-        setRecent(prev => [{ receiptNum: demoNum, studentName: form.studentName, amount: parseInt(form.amount), method: form.method, currency: form.currency }, ...prev])
-        Alert.alert('✅ Reçu généré', `N° ${demoNum}\n${form.amount} ${form.currency} reçu.\nReçu PDF disponible 24h.`)
-        setForm(f => ({ ...f, studentName: '', studentId: '', parentName: '', parentPhone: '', feeLabel: '', amount: '', chequeNum: '', bankName: '', notes: '' }))
-        return
-      }
+    const res = await record({
+      installment: target,
+      amount: value,
+      method,
+      chequeNum: chequeNum || undefined,
+      bankName: bankName || undefined,
+      payerName: payerName.trim(),
+      payerPhone: payerPhone || undefined,
+      notes: undefined,
+    })
 
-      const res = await recordCashCF({
-        schoolId,
-        studentId:    form.studentId || 'manual',
-        studentName:  form.studentName,
-        parentName:   form.parentName,
-        parentPhone:  form.parentPhone || undefined,
-        feeLabel:     form.feeLabel,
-        amount:       parseInt(form.amount),
-        currency:     form.currency,
-        method:       form.method,
-        chequeNum:    form.chequeNum || undefined,
-        bankName:     form.bankName  || undefined,
-        notes:        form.notes     || undefined,
-        sendWhatsApp: form.sendWhatsApp && !!form.parentPhone,
-      }) as any
-
-      Alert.alert(
-        '✅ Paiement enregistré',
-        `N° ${res.data.receiptNum}\n${form.amount} ${form.currency} reçu.` +
-        (form.sendWhatsApp && form.parentPhone ? '\nReçu envoyé par WhatsApp.' : ''),
-        [{ text: 'OK' }]
-      )
-      setForm(f => ({ ...f, studentName: '', studentId: '', parentName: '', parentPhone: '', feeLabel: '', amount: '', chequeNum: '', bankName: '', notes: '' }))
-    } catch (e: any) {
-      Alert.alert('Erreur', e?.message ?? 'Impossible d\'enregistrer le paiement.')
-    } finally {
-      setSaving(false)
+    if (!res.ok) {
+      Alert.alert('Encaissement refusé', res.error)
+      return
     }
-  }, [form, schoolId, recent])
 
-  const setField = useCallback(<K extends keyof typeof form>(key: K, val: typeof form[K]) => {
-    setForm(f => ({ ...f, [key]: val }))
-  }, [])
+    resetForm()
+    Alert.alert(
+      'Encaissement enregistré',
+      `Reçu ${res.receiptNum}\n${formatAmount(value)} — le solde de la famille est mis à jour.`
+    )
+  }
+
+  async function handleOpen() {
+    const value = parseFloat(fundInput.replace(/\s/g, '').replace(',', '.')) || 0
+    const res = await openSession(value)
+    setOpenModal(false)
+    setFundInput('')
+    if (!res.ok) Alert.alert('Ouverture impossible', res.error)
+  }
+
+  async function handleClose() {
+    const value = parseFloat(fundInput.replace(/\s/g, '').replace(',', '.'))
+    if (Number.isNaN(value)) {
+      Alert.alert('Comptage requis', 'Saisissez le montant réellement compté dans le tiroir.')
+      return
+    }
+    const res = await closeSession(value)
+    setCloseModal(false)
+    setFundInput('')
+    if (!res.ok) {
+      Alert.alert('Fermeture impossible', res.error)
+      return
+    }
+    Alert.alert(
+      'Caisse fermée',
+      res.variance === 0
+        ? 'Comptage conforme au théorique.'
+        : `Écart constaté : ${res.variance > 0 ? '+' : ''}${formatAmount(res.variance)}.\nIl est enregistré et consultable par la direction.`
+    )
+  }
+
+  // ── États ──────────────────────────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={s.screen} edges={['top']}>
+        <View style={s.center}>
+          <ActivityIndicator color={colors.primary} />
+          <Text style={s.centerText}>Chargement de la caisse…</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+    <SafeAreaView style={s.screen} edges={['top']}>
+      <View style={s.header}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.headerTitle}>Guichet d’encaissement</Text>
+          <Text style={s.headerSub}>
+            {session
+              ? `Ouverte depuis ${new Date(session.openedAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+              : 'Caisse fermée'}
+          </Text>
+        </View>
 
-          {/* Header */}
-          <View style={styles.header}>
-            <Ionicons name="cash-outline" size={22} color={colors.white} />
-            <View>
-              <Text style={styles.headerTitle}>Guichet d'encaissement</Text>
-              <Text style={styles.headerSub}>Paiements espèces, chèques et virements</Text>
+        {session ? (
+          <TouchableOpacity
+            onPress={() => { setFundInput(''); setCloseModal(true) }}
+            style={s.closeBtn}
+          >
+            <Ionicons name="lock-closed-outline" size={15} color={colors.danger} />
+            <Text style={s.closeBtnText}>Fermer</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={() => { setFundInput(''); setOpenModal(true) }}
+            style={s.openBtn}
+          >
+            <Ionicons name="lock-open-outline" size={15} color={colors.white} />
+            <Text style={s.openBtnText}>Ouvrir</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* ── Caisse fermée : rien d'autre n'est possible ─────────── */}
+      {!session ? (
+        <EmptyState
+          icon="lock-closed-outline"
+          title="Caisse fermée"
+          detail="Ouvrez la caisse en déclarant le fond de tiroir. Tous les encaissements y seront rattachés, et l’écart sera constaté à la fermeture."
+        />
+      ) : (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+            {/* ── Situation de la caisse ─────────────────────────── */}
+            <View style={s.sessionCard}>
+              <View style={s.sessionRow}>
+                <View>
+                  <Text style={s.sessionLabel}>Encaissé aujourd’hui</Text>
+                  <Text style={s.sessionValue}>{formatAmount(session.collected)}</Text>
+                </View>
+                <View style={s.sessionRight}>
+                  <Text style={s.sessionCount}>{session.count} opération{session.count > 1 ? 's' : ''}</Text>
+                  <Text style={s.sessionFund}>
+                    Fond : {formatAmount(session.openingBalance)}
+                  </Text>
+                </View>
+              </View>
             </View>
-          </View>
 
-          {/* Formulaire */}
-          <View style={styles.form}>
+            {error && (
+              <View style={s.errorBanner}>
+                <Ionicons name="close-circle" size={16} color={colors.danger} />
+                <Text style={s.errorText}>{error}</Text>
+              </View>
+            )}
 
-            {/* Méthode de paiement */}
-            <Text style={styles.sectionLabel}>Mode de paiement</Text>
-            <View style={styles.methodRow}>
-              {METHODS.map(m => (
-                <TouchableOpacity
-                  key={m.id}
-                  style={[styles.methodChip, form.method === m.id && styles.methodChipActive]}
-                  onPress={() => setField('method', m.id)}
-                >
-                  <Text style={{ fontSize: 18 }}>{m.icon}</Text>
-                  <Text style={[styles.methodLabel, form.method === m.id && { color: colors.primary, fontWeight: '700' }]}>{m.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            {/* ── Recherche d'élève ──────────────────────────────── */}
+            {!selected ? (
+              <View>
+                <Text style={s.sectionTitle}>Rechercher l’élève</Text>
+                <View style={s.searchBox}>
+                  <Ionicons name="search" size={17} color={colors.mutedText} />
+                  <TextInput
+                    value={query}
+                    onChangeText={onSearch}
+                    placeholder="Nom ou matricule"
+                    placeholderTextColor={colors.gray[400]}
+                    style={s.searchInput}
+                    autoCorrect={false}
+                  />
+                  {isSearching && <ActivityIndicator size="small" color={colors.primary} />}
+                </View>
 
-            {/* Élève */}
-            <Text style={styles.sectionLabel}>Élève & Parent</Text>
-            <TextInput style={styles.input} placeholder="Nom complet de l'élève *" value={form.studentName} onChangeText={v => setField('studentName', v)} />
-            <TextInput style={styles.input} placeholder="Nom du parent / tuteur *" value={form.parentName} onChangeText={v => setField('parentName', v)} />
-            <TextInput style={styles.input} placeholder="Téléphone parent (pour WhatsApp)" value={form.parentPhone} onChangeText={v => setField('parentPhone', v)} keyboardType="phone-pad" />
+                {query.length >= 2 && results.length === 0 && !isSearching && (
+                  <Text style={s.noResult}>Aucun élève trouvé pour « {query} ».</Text>
+                )}
 
-            {/* Objet + Montant */}
-            <Text style={styles.sectionLabel}>Paiement</Text>
-            <TextInput style={styles.input} placeholder="Objet du paiement * (ex: Scolarité T2)" value={form.feeLabel} onChangeText={v => setField('feeLabel', v)} />
-            <View style={styles.amountRow}>
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Montant *"
-                value={form.amount}
-                onChangeText={v => setField('amount', v)}
-                keyboardType="number-pad"
-              />
-              <View style={styles.currencyPicker}>
-                {['XOF', 'XAF', 'GNF'].map(c => (
-                  <TouchableOpacity key={c} onPress={() => setField('currency', c)}
-                    style={[styles.currencyBtn, form.currency === c && styles.currencyBtnActive]}>
-                    <Text style={[styles.currencyText, form.currency === c && { color: colors.white }]}>{c}</Text>
+                <View style={{ gap: spacing.sm, marginTop: spacing.sm + 2 }}>
+                  {results.map((r) => (
+                    <StudentResult key={r.id} hit={r} onPress={() => void selectStudent(r)} />
+                  ))}
+                </View>
+              </View>
+            ) : (
+              <View>
+                {/* ── Élève sélectionné ────────────────────────── */}
+                <View style={s.selectedCard}>
+                  <View style={s.selectedAvatar}>
+                    <Text style={s.selectedInitials}>{initials(selected.fullName)}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.selectedName} numberOfLines={1}>{selected.fullName}</Text>
+                    <Text style={s.selectedMeta} numberOfLines={1}>
+                      {selected.className ?? '—'}
+                      {selected.studentNumber ? ` · N° ${selected.studentNumber}` : ''}
+                    </Text>
+                  </View>
+                  <TouchableOpacity onPress={() => { clearStudent(); resetForm(); setQuery('') }}>
+                    <Ionicons name="close-circle" size={22} color={colors.gray[400]} />
                   </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Chèque */}
-            {form.method === 'cheque' && (
-              <>
-                <TextInput style={styles.input} placeholder="N° de chèque" value={form.chequeNum} onChangeText={v => setField('chequeNum', v)} />
-                <TextInput style={styles.input} placeholder="Banque émettrice" value={form.bankName} onChangeText={v => setField('bankName', v)} />
-              </>
-            )}
-
-            {/* Notes */}
-            <TextInput style={[styles.input, { height: 60, textAlignVertical: 'top' }]} placeholder="Notes (optionnel)" value={form.notes} onChangeText={v => setField('notes', v)} multiline />
-
-            {/* WhatsApp toggle */}
-            <View style={styles.whatsappRow}>
-              <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
-              <Text style={styles.whatsappLabel}>Envoyer le reçu par WhatsApp</Text>
-              <Switch
-                value={form.sendWhatsApp}
-                onValueChange={v => setField('sendWhatsApp', v)}
-                trackColor={{ true: '#25D366' }}
-                disabled={!form.parentPhone}
-              />
-            </View>
-            {!form.parentPhone && form.sendWhatsApp && (
-              <Text style={styles.whatsappHint}>⚠️ Entrez le numéro du parent pour activer l'envoi WhatsApp</Text>
-            )}
-
-            {/* Bouton */}
-            <TouchableOpacity
-              style={[styles.submitBtn, saving && { opacity: 0.7 }]}
-              onPress={handleSubmit}
-              disabled={saving}
-            >
-              {saving
-                ? <ActivityIndicator color={colors.white} />
-                : <><Ionicons name="receipt-outline" size={18} color={colors.white} />
-                   <Text style={styles.submitBtnText}>Enregistrer et générer le reçu</Text></>
-              }
-            </TouchableOpacity>
-          </View>
-
-          {/* Derniers reçus */}
-          <View style={styles.recentSection}>
-            <Text style={styles.sectionLabel}>Reçus récents</Text>
-            {recent.map((r, i) => (
-              <View key={i} style={styles.recentRow}>
-                <View style={styles.recentIcon}>
-                  <Text style={{ fontSize: 14 }}>{r.method === 'especes' ? '💵' : r.method === 'cheque' ? '🏦' : '📤'}</Text>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.recentName}>{r.studentName}</Text>
-                  <Text style={styles.recentNum}>{r.receiptNum}</Text>
-                </View>
-                <Text style={styles.recentAmount}>{r.amount.toLocaleString('fr-FR')} {r.currency}</Text>
-              </View>
-            ))}
-          </View>
 
-        </ScrollView>
-      </KeyboardAvoidingView>
+                {/* ── Échéances ouvertes ───────────────────────── */}
+                <Text style={[s.sectionTitle, { marginTop: spacing.md }]}>
+                  Échéance à régler
+                </Text>
+
+                {installments.length === 0 ? (
+                  <View style={s.clearBox}>
+                    <Ionicons name="checkmark-circle" size={19} color={colors.secondary} />
+                    <Text style={s.clearText}>
+                      Aucun impayé pour cet élève. Rien à encaisser.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={{ gap: spacing.sm }}>
+                    {installments.map((i) => {
+                      const active = target?.id === i.id
+                      return (
+                        <TouchableOpacity
+                          key={i.id}
+                          activeOpacity={0.85}
+                          onPress={() => {
+                            setTarget(i)
+                            // Pré-remplir avec le reste dû : c'est le cas
+                            // le plus fréquent au guichet.
+                            setAmount(String(Math.round(i.remaining)))
+                          }}
+                          style={[s.instCard, active && s.instCardActive]}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.instLabel} numberOfLines={1}>
+                              {i.label ?? 'Frais de scolarité'}
+                            </Text>
+                            <Text style={s.instMeta} numberOfLines={1}>
+                              {i.invoiceNum} · échéance {shortDate(i.dueDate)}
+                            </Text>
+                          </View>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={[s.instAmount, i.isOverdue && { color: colors.danger }]}>
+                              {formatAmount(i.remaining, i.currency)}
+                            </Text>
+                            {i.isOverdue && <Text style={s.instLate}>En retard</Text>}
+                          </View>
+                          {active && (
+                            <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                          )}
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                )}
+
+                {/* ── Formulaire d'encaissement ────────────────── */}
+                {target && (
+                  <View style={s.formCard}>
+                    <Text style={s.formTitle}>Encaissement</Text>
+
+                    <View>
+                      <Text style={s.fieldLabel}>Montant reçu</Text>
+                      <View style={s.amountRow}>
+                        <TextInput
+                          value={amount}
+                          onChangeText={setAmount}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor={colors.gray[400]}
+                          style={s.amountInput}
+                        />
+                        <Text style={s.amountCurrency}>{target.currency === 'XOF' ? 'FCFA' : target.currency}</Text>
+                      </View>
+                      <Text style={s.fieldHint}>
+                        Reste dû : {formatAmount(target.remaining, target.currency)} ·
+                        un paiement partiel est accepté
+                      </Text>
+                    </View>
+
+                    <View>
+                      <Text style={s.fieldLabel}>Moyen de paiement</Text>
+                      <View style={s.methodRow}>
+                        {METHODS.map((m) => (
+                          <TouchableOpacity
+                            key={m.id}
+                            activeOpacity={0.85}
+                            onPress={() => setMethod(m.id)}
+                            style={[s.methodBtn, method === m.id && s.methodBtnActive]}
+                          >
+                            <Ionicons
+                              name={m.icon}
+                              size={16}
+                              color={method === m.id ? colors.white : colors.mutedText}
+                            />
+                            <Text
+                              style={[s.methodText, method === m.id && { color: colors.white }]}
+                            >
+                              {m.label}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+
+                    {method === 'cheque' && (
+                      <View style={s.chequeRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.fieldLabel}>N° de chèque</Text>
+                          <TextInput
+                            value={chequeNum}
+                            onChangeText={setChequeNum}
+                            placeholder="0000000"
+                            placeholderTextColor={colors.gray[400]}
+                            style={s.input}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.fieldLabel}>Banque</Text>
+                          <TextInput
+                            value={bankName}
+                            onChangeText={setBankName}
+                            placeholder="Nom de la banque"
+                            placeholderTextColor={colors.gray[400]}
+                            style={s.input}
+                          />
+                        </View>
+                      </View>
+                    )}
+
+                    <View>
+                      <Text style={s.fieldLabel}>Personne qui règle</Text>
+                      <TextInput
+                        value={payerName}
+                        onChangeText={setPayerName}
+                        placeholder="Nom figurant sur le reçu"
+                        placeholderTextColor={colors.gray[400]}
+                        style={s.input}
+                      />
+                    </View>
+
+                    <View>
+                      <Text style={s.fieldLabel}>Téléphone (facultatif)</Text>
+                      <TextInput
+                        value={payerPhone}
+                        onChangeText={setPayerPhone}
+                        keyboardType="phone-pad"
+                        placeholder="06 XXX XX XX"
+                        placeholderTextColor={colors.gray[400]}
+                        style={s.input}
+                      />
+                    </View>
+
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      disabled={isSaving}
+                      onPress={handleRecord}
+                      style={[s.recordBtn, isSaving && { opacity: 0.6 }]}
+                    >
+                      {isSaving
+                        ? <ActivityIndicator color={colors.white} size="small" />
+                        : <Ionicons name="receipt-outline" size={18} color={colors.white} />}
+                      <Text style={s.recordBtnText}>Encaisser et éditer le reçu</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      )}
+
+      {/* ── Ouverture / fermeture ────────────────────────────────── */}
+      <FundModal
+        visible={openModal}
+        title="Ouvrir la caisse"
+        detail="Déclarez le fond de tiroir présent avant le premier encaissement."
+        label="Fond de caisse"
+        value={fundInput}
+        onChange={setFundInput}
+        confirmLabel="Ouvrir"
+        onConfirm={handleOpen}
+        onCancel={() => setOpenModal(false)}
+      />
+
+      <FundModal
+        visible={closeModal}
+        title="Fermer la caisse"
+        detail={
+          session
+            ? `Théorique : ${formatAmount(session.openingBalance + session.collected)}. Saisissez ce que vous avez réellement compté ; l’écart sera enregistré.`
+            : ''
+        }
+        label="Montant compté"
+        value={fundInput}
+        onChange={setFundInput}
+        confirmLabel="Fermer la caisse"
+        danger
+        onConfirm={handleClose}
+        onCancel={() => setCloseModal(false)}
+      />
     </SafeAreaView>
   )
 }
 
-const styles = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: colors.gray[50] },
-  header:           { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: '#059669', padding: spacing.lg },
-  headerTitle:      { fontSize: fontSize.lg, fontWeight: '800', color: colors.white },
-  headerSub:        { fontSize: fontSize.xs, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
-  form:             { padding: spacing.md, gap: spacing.sm },
-  sectionLabel:     { fontSize: fontSize.xs, fontWeight: '700', color: colors.gray[500], textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4, marginBottom: 2 },
-  methodRow:        { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  methodChip:       { flex: 1, minWidth: '45%', flexDirection: 'row', alignItems: 'center', gap: 6, padding: 10, backgroundColor: colors.white, borderRadius: radius.md, borderWidth: 1.5, borderColor: colors.gray[200] },
-  methodChipActive: { borderColor: colors.primary, backgroundColor: colors.primary + '10' },
-  methodLabel:      { fontSize: fontSize.sm, color: colors.gray[600] },
-  input:            { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.gray[200], borderRadius: radius.md, padding: 12, fontSize: fontSize.sm, color: colors.gray[900] },
-  amountRow:        { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
-  currencyPicker:   { flexDirection: 'row', gap: 4 },
-  currencyBtn:      { paddingHorizontal: 8, paddingVertical: 10, borderRadius: radius.sm, backgroundColor: colors.gray[100] },
-  currencyBtnActive:{ backgroundColor: colors.primary },
-  currencyText:     { fontSize: fontSize.xs, fontWeight: '700', color: colors.gray[600] },
-  whatsappRow:      { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.white, padding: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: '#D1FAE5' },
-  whatsappLabel:    { flex: 1, fontSize: fontSize.sm, color: colors.gray[700], fontWeight: '600' },
-  whatsappHint:     { fontSize: fontSize.xs, color: colors.warning, marginTop: -4 },
-  submitBtn:        { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#059669', borderRadius: radius.lg, padding: 15, marginTop: 6 },
-  submitBtnText:    { color: colors.white, fontSize: fontSize.md, fontWeight: '800' },
-  recentSection:    { padding: spacing.md, paddingTop: 0 },
-  recentRow:        { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.white, borderRadius: radius.lg, padding: spacing.sm, marginBottom: 6, borderWidth: 1, borderColor: colors.gray[100] },
-  recentIcon:       { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.gray[50], justifyContent: 'center', alignItems: 'center' },
-  recentName:       { fontSize: fontSize.sm, fontWeight: '600', color: colors.gray[800] },
-  recentNum:        { fontSize: fontSize.xs, color: colors.gray[400] },
-  recentAmount:     { fontSize: fontSize.sm, fontWeight: '700', color: '#059669' },
+// ── Résultat de recherche ─────────────────────────────────────────────────────
+
+function StudentResult({ hit, onPress }: { hit: StudentHit; onPress: () => void }) {
+  return (
+    <TouchableOpacity activeOpacity={0.8} onPress={onPress} style={s.resultRow}>
+      <View style={s.resultAvatar}>
+        <Text style={s.resultInitials}>{initials(hit.fullName)}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.resultName} numberOfLines={1}>{hit.fullName}</Text>
+        <Text style={s.resultMeta} numberOfLines={1}>
+          {hit.className ?? '—'}
+          {hit.studentNumber ? ` · N° ${hit.studentNumber}` : ''}
+        </Text>
+      </View>
+      {hit.balance > 0 ? (
+        <View style={s.balanceTag}>
+          <Text style={s.balanceText}>{formatAmount(hit.balance)}</Text>
+        </View>
+      ) : (
+        <View style={s.clearTag}>
+          <Text style={s.clearTagText}>À jour</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  )
+}
+
+// ── Modale de fond de caisse ──────────────────────────────────────────────────
+
+function FundModal({
+  visible, title, detail, label, value, onChange,
+  confirmLabel, danger, onConfirm, onCancel,
+}: {
+  visible: boolean
+  title: string
+  detail: string
+  label: string
+  value: string
+  onChange: (v: string) => void
+  confirmLabel: string
+  danger?: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
+      <View style={s.modalBackdrop}>
+        <View style={s.modalCard}>
+          <Text style={s.modalTitle}>{title}</Text>
+          <Text style={s.modalDetail}>{detail}</Text>
+
+          <Text style={[s.fieldLabel, { marginTop: spacing.md }]}>{label}</Text>
+          <View style={s.amountRow}>
+            <TextInput
+              value={value}
+              onChangeText={onChange}
+              keyboardType="numeric"
+              placeholder="0"
+              placeholderTextColor={colors.gray[400]}
+              style={s.amountInput}
+              autoFocus
+            />
+            <Text style={s.amountCurrency}>FCFA</Text>
+          </View>
+
+          <View style={s.modalActions}>
+            <TouchableOpacity style={s.modalCancel} onPress={onCancel}>
+              <Text style={s.modalCancelText}>Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.modalConfirm, danger && { backgroundColor: colors.danger }]}
+              onPress={onConfirm}
+            >
+              <Text style={s.modalConfirmText}>{confirmLabel}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  )
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+  centerText: { fontFamily: fontFamily.body, fontSize: fontSize.sm, color: colors.mutedText },
+
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md + 4,
+    paddingTop: spacing.sm, paddingBottom: spacing.sm + 4,
+  },
+  headerTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  headerSub: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText, marginTop: 1 },
+  openBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: colors.secondary,
+    paddingHorizontal: spacing.sm + 4, paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+  },
+  openBtnText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.white,
+  },
+  closeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(194,65,59,0.08)',
+    borderWidth: 1, borderColor: 'rgba(194,65,59,0.25)',
+    paddingHorizontal: spacing.sm + 4, paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+  },
+  closeBtnText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.danger,
+  },
+
+  content: {
+    paddingHorizontal: spacing.md + 4,
+    paddingVertical: spacing.md,
+    paddingBottom: spacing.xl + spacing.lg,
+    gap: spacing.md,
+  },
+
+  sessionCard: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.xl, padding: spacing.md,
+    ...shadow.md,
+  },
+  sessionRow: {
+    flexDirection: 'row', alignItems: 'flex-end',
+    justifyContent: 'space-between', gap: spacing.sm,
+  },
+  sessionLabel: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: 'rgba(255,255,255,0.75)' },
+  sessionValue: {
+    fontFamily: fontFamily.heading, fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.extrabold, color: colors.white, marginTop: 2,
+  },
+  sessionRight: { alignItems: 'flex-end' },
+  sessionCount: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold, color: colors.white,
+  },
+  sessionFund: { fontFamily: fontFamily.body, fontSize: 11, color: 'rgba(255,255,255,0.70)', marginTop: 2 },
+
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: 'rgba(194,65,59,0.08)',
+    borderWidth: 1, borderColor: 'rgba(194,65,59,0.25)',
+    borderRadius: radius.lg, padding: spacing.sm + 4,
+  },
+  errorText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.danger },
+
+  sectionTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.text, marginBottom: spacing.sm,
+  },
+
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.sm + 4, paddingVertical: spacing.sm + 2,
+  },
+  searchInput: {
+    flex: 1, fontFamily: fontFamily.body,
+    fontSize: fontSize.base, color: colors.text, paddingVertical: 2,
+  },
+  noResult: {
+    fontFamily: fontFamily.body, fontSize: fontSize.xs,
+    color: colors.mutedText, marginTop: spacing.sm, textAlign: 'center',
+  },
+
+  resultRow: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.lg, padding: spacing.sm + 4,
+  },
+  resultAvatar: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: colors.muted,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  resultInitials: {
+    fontFamily: fontFamily.heading, fontSize: 12,
+    fontWeight: fontWeight.bold, color: colors.primary,
+  },
+  resultName: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  resultMeta: { fontFamily: fontFamily.body, fontSize: 11, color: colors.mutedText, marginTop: 1 },
+  balanceTag: {
+    backgroundColor: 'rgba(194,65,59,0.10)',
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: radius.full,
+  },
+  balanceText: {
+    fontFamily: fontFamily.bodySemi, fontSize: 11,
+    fontWeight: fontWeight.bold, color: colors.danger,
+  },
+  clearTag: {
+    backgroundColor: 'rgba(15,118,110,0.10)',
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: radius.full,
+  },
+  clearTagText: {
+    fontFamily: fontFamily.bodySemi, fontSize: 11,
+    fontWeight: fontWeight.bold, color: colors.secondary,
+  },
+
+  selectedCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm + 2,
+    backgroundColor: colors.surface,
+    borderWidth: 2, borderColor: colors.primary,
+    borderRadius: radius.xl, padding: spacing.sm + 4,
+  },
+  selectedAvatar: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  selectedInitials: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.white,
+  },
+  selectedName: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  selectedMeta: { fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.mutedText, marginTop: 1 },
+
+  clearBox: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: 'rgba(15,118,110,0.06)',
+    borderWidth: 1, borderColor: 'rgba(15,118,110,0.22)',
+    borderRadius: radius.lg, padding: spacing.md,
+  },
+  clearText: { flex: 1, fontFamily: fontFamily.body, fontSize: fontSize.xs, color: colors.secondary },
+
+  instCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.lg, padding: spacing.sm + 4,
+  },
+  instCardActive: { borderWidth: 2, borderColor: colors.primary },
+  instLabel: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  instMeta: { fontFamily: fontFamily.body, fontSize: 11, color: colors.mutedText, marginTop: 1 },
+  instAmount: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  instLate: {
+    fontFamily: fontFamily.bodySemi, fontSize: 10,
+    fontWeight: fontWeight.bold, color: colors.danger, marginTop: 1,
+  },
+
+  formCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.xl, padding: spacing.md,
+    gap: spacing.md, marginTop: spacing.md,
+    ...shadow.sm,
+  },
+  formTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.base,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  fieldLabel: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold, color: colors.text, marginBottom: 6,
+  },
+  fieldHint: { fontFamily: fontFamily.body, fontSize: 11, color: colors.mutedText, marginTop: 6 },
+  input: {
+    backgroundColor: colors.gray[100],
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.sm + 4, paddingVertical: spacing.sm + 2,
+    fontFamily: fontFamily.body, fontSize: fontSize.base, color: colors.text,
+  },
+  amountRow: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.gray[100],
+    borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.lg, paddingHorizontal: spacing.sm + 4,
+  },
+  amountInput: {
+    flex: 1, paddingVertical: spacing.sm + 4,
+    fontFamily: fontFamily.heading, fontSize: fontSize.xl,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  amountCurrency: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold, color: colors.mutedText,
+  },
+
+  methodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  methodBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: colors.muted,
+    paddingHorizontal: spacing.sm + 4, paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+  },
+  methodBtnActive: { backgroundColor: colors.primary },
+  methodText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold, color: colors.mutedText,
+  },
+  chequeRow: { flexDirection: 'row', gap: spacing.sm },
+
+  recordBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+    backgroundColor: colors.secondary,
+    paddingVertical: spacing.md, borderRadius: radius.lg,
+    ...shadow.sm,
+  },
+  recordBtnText: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.white,
+  },
+
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,33,61,0.45)' },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'],
+    padding: spacing.lg, paddingBottom: spacing.xl,
+  },
+  modalTitle: {
+    fontFamily: fontFamily.heading, fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold, color: colors.text,
+  },
+  modalDetail: {
+    fontFamily: fontFamily.body, fontSize: fontSize.xs,
+    color: colors.mutedText, marginTop: 4, lineHeight: 17,
+  },
+  modalActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  modalCancel: {
+    flex: 1, alignItems: 'center',
+    backgroundColor: colors.muted,
+    paddingVertical: spacing.sm + 4, borderRadius: radius.lg,
+  },
+  modalCancelText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold, color: colors.text,
+  },
+  modalConfirm: {
+    flex: 1, alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm + 4, borderRadius: radius.lg,
+  },
+  modalConfirmText: {
+    fontFamily: fontFamily.bodySemi, fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold, color: colors.white,
+  },
 })

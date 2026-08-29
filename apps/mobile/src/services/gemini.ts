@@ -53,8 +53,18 @@ export async function askGemini(params: {
   context?:           AIContext
   courseId?:          string
   maxTokens?:         number
+  /**
+   * Cadrage envoye en tete du prompt : role de l'assistant, limites du
+   * sujet, interdiction de donner une reponse a recopier pendant une
+   * evaluation (§15.7). Sans lui, le chat repond hors contexte scolaire.
+   */
+  systemInstruction?: string
+  temperature?:       number
 }): Promise<string> {
-  const { prompt, history = [], context = 'default', courseId, maxTokens = 1024 } = params
+  const {
+    prompt, history = [], context = 'default', courseId,
+    maxTokens = 1024, systemInstruction,
+  } = params
 
   // Sérialiser l'historique dans le prompt si présent (format lisible par le LLM)
   let fullPrompt = prompt
@@ -63,6 +73,14 @@ export async function askGemini(params: {
       .map(m => `${m.role === 'user' ? 'Élève' : 'Assistant'} : ${m.parts.map(p => p.text).join(' ')}`)
       .join('\n')
     fullPrompt = `${historyText}\nÉlève : ${prompt}`
+  }
+
+  if (systemInstruction) {
+    fullPrompt = `${systemInstruction}
+
+---
+
+${fullPrompt}`
   }
 
   const result = await callAI({ prompt: fullPrompt, context, courseId, maxTokens })

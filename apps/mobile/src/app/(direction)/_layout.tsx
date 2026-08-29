@@ -72,6 +72,19 @@ export default function DirectionLayout() {
         }}
       />
       <Tabs.Screen
+        name="validation"
+        options={{
+          title: 'Validation',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name={color === colors.primary ? 'checkbox' : 'checkbox-outline'}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="config"
         options={{
           title: 'Config',

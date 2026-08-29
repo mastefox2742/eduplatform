@@ -16,8 +16,10 @@ import {
 } from '@/services/offlineQueue'
 import {
   submitBulletin, validateBulletin, rejectBulletin, publishBulletin,
-  saveAttendance, markAnnouncementRead,
+  saveAttendanceRecord, markAnnouncementRead,
 } from '@/services/firestore'
+// Verticales deja basculees sur Supabase.
+import { saveGradeBatch, type GradeBatch } from '@/services/supabase'
 
 // ── Executor : dispatche chaque type d'op vers le bon service Firebase ────────
 
@@ -37,7 +39,7 @@ async function executeOp(op: QueuedOp): Promise<void> {
       await publishBulletin(schoolId, payload.bulletinId as string)
       break
     case 'saveAttendance':
-      await saveAttendance(
+      await saveAttendanceRecord(
         schoolId,
         payload.classId    as string,
         payload.dateISO    as string,
@@ -45,6 +47,10 @@ async function executeOp(op: QueuedOp): Promise<void> {
         payload.records    as any,
         payload.meta       as any,
       )
+      break
+    case 'saveGrades':
+      // Verticale pedagogie : deja sur Supabase.
+      await saveGradeBatch(payload as unknown as GradeBatch)
       break
     case 'markAnnouncementRead':
       await markAnnouncementRead(schoolId, payload.announcementId as string, payload.userId as string)
@@ -55,7 +61,7 @@ async function executeOp(op: QueuedOp): Promise<void> {
       const { db } = await import('@/config/firebase')
       await setDoc(
         doc(db, 'schools', schoolId, 'school_config', 'main'),
-        { ...payload.data, updatedAt: serverTimestamp() },
+        { ...(payload.data as Record<string, unknown>), updatedAt: serverTimestamp() },
         { merge: true },
       )
       break

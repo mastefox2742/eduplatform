@@ -358,7 +358,7 @@ export default function FinancesScreen() {
               <Text style={[styles.thCell, { flex: 2 }]}>Facture</Text>
               <Text style={[styles.thCell, styles.thRight, { flex: 1.2 }]}>Importo</Text>
               <TouchableOpacity
-                style={[styles.thCell, styles.thRight, { flex: 1.8, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 4 }]}
+                style={{ flex: 1.8, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 4 }}
                 onPress={() => setSortStatus(s => !s)}
               >
                 <Text style={styles.thCellText}>Stato Pag.</Text>

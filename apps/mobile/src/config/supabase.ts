@@ -100,6 +100,11 @@ export interface BulletinRow {
   status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'published'
   submitted_at: string | null; approved_at: string | null; published_at: string | null
   created_at: string; updated_at: string
+  /**
+   * Relation chargee par `.select('*, bulletin_assessments(*)')`.
+   * Absente si la requete ne la demande pas explicitement.
+   */
+  bulletin_assessments?: AssessmentRow[]
 }
 export interface BulletinInsert extends Partial<BulletinRow> {
   school_id: string; student_id: string; student_name: string

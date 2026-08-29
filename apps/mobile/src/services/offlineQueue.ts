@@ -17,6 +17,7 @@ const QUEUE_KEY = '@eduschool:offline_queue'
 export type QueuedOpType =
   | 'submitBulletin'
   | 'saveAttendance'
+  | 'saveGrades'
   | 'validateBulletin'
   | 'rejectBulletin'
   | 'publishBulletin'

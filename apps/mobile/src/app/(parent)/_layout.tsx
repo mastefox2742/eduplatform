@@ -1,9 +1,6 @@
 import { Tabs } from 'expo-router'
-import { View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '@/theme'
-import { ChildSwitcher } from '@/components/ui/ChildSwitcher'
-import { useActiveChild } from '@/hooks/useActiveChild'
 
 type IconName = React.ComponentProps<typeof Ionicons>['name']
 
@@ -15,24 +12,13 @@ const TABS: { name: string; title: string; icon: IconName; iconActive: IconName 
 ]
 
 export default function ParentLayout() {
-  const { children, activeChild, setActive } = useActiveChild()
-
   return (
     <Tabs
       screenOptions={{
-        // Header global avec sélecteur d'enfant
-        headerShown: true,
-        headerTitle: () => (
-          <View style={{ flex: 1, paddingHorizontal: 4 }}>
-            <ChildSwitcher
-              children={children}
-              activeChild={activeChild}
-              onSelect={setActive}
-            />
-          </View>
-        ),
-        headerStyle:           { backgroundColor: colors.white },
-        headerShadowVisible:   true,
+        // Le sélecteur d'enfant vit dans l'écran d'accueil (rail de
+        // cartes, cf. maquette `parent---dashboard`). Le remettre ici
+        // ferait deux sélecteurs pour un même choix.
+        headerShown: false,
         tabBarActiveTintColor:   colors.primary,
         tabBarInactiveTintColor: colors.gray[400],
         tabBarStyle: {
@@ -58,6 +44,8 @@ export default function ParentLayout() {
           }}
         />
       ))}
+      {/* Page pleine hors barre d'onglets : ouverte depuis « Scolarité ». */}
+      <Tabs.Screen name="paiement" options={{ href: null, headerShown: false }} />
     </Tabs>
   )
 }

@@ -31,6 +31,9 @@ interface ImportMetaEnv {
   readonly VITE_SB_PEDAGOGIE?: string
   readonly VITE_SB_FINANCE?: string
 
+  /** Mode aperçu local — désarmé en production (voir config/preview.ts). */
+  readonly VITE_PREVIEW_MODE?: string
+
   readonly VITE_APP_VERSION?: string
 }
 

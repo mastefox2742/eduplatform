@@ -17,6 +17,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '@/config/supabase'
+import { PREVIEW_MODE } from '@/config/preview'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -93,12 +94,68 @@ function methodLabel(network: string | null, provider: string | null): string {
   return 'Autre'
 }
 
+// ── Jeu d'aperçu ──────────────────────────────────────────────────────────────
+
+/**
+ * Données de démonstration, reprises de la maquette
+ * `design/maquettes/direction---web-dashboard.html`.
+ *
+ * Elles ne servent qu'au mode aperçu : sans backend, l'écran doit
+ * montrer quelque chose plutôt que tourner sans fin.
+ */
+const PREVIEW_OVERVIEW: State = {
+  schoolName: 'Lycée La Référence · Brazzaville',
+  academicYear: '2025-2026',
+  periodLabel: '2e trimestre',
+  enrollment: {
+    total: 842,
+    girls: 430,
+    boys: 412,
+    byCycle: [
+      { cycle: 'Lycée', count: 318 },
+      { cycle: 'Collège', count: 294 },
+      { cycle: 'Primaire', count: 230 },
+    ],
+  },
+  attendance: { rate: 94.6, present: 785, absent: 45, justified: 12, expected: 842 },
+  collection: {
+    collected: 42_800_000,
+    expected: 51_000_000,
+    remaining: 8_150_000,
+    rate: 84,
+    byMethod: [
+      { label: 'MTN Mobile Money', amount: 22_427_200, share: 52.4 },
+      { label: 'Airtel Money',     amount: 14_081_200, share: 32.9 },
+      { label: 'Caisse directe',   amount:  6_291_600, share: 14.7 },
+    ],
+  },
+  pendingClasses: [
+    { classId: 'p1', className: 'Terminale C',     headcount: 34, average: 13.45, controlledBy: 'M. Makosso', count: 34 },
+    { classId: 'p2', className: 'Terminale D1',    headcount: 42, average: 12.80, controlledBy: 'M. Makosso', count: 42 },
+    { classId: 'p3', className: '3ème A (Brevet)', headcount: 38, average: 11.90, controlledBy: 'Mme Ngoma',  count: 38 },
+    { classId: 'p4', className: '6ème C',          headcount: 31, average: null,  controlledBy: null,          count: 31 },
+  ],
+  validatedCount: 18,
+  pendingCount: 145,
+  lastUpdated: null,
+  isLoading: false,
+  error: null,
+}
+
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function useSchoolOverview() {
   const [state, setState] = useState<State>(EMPTY)
 
   const load = useCallback(async () => {
+    // En aperçu, aucun backend n'est joignable : on sert un jeu de
+    // démonstration plutôt que de laisser l'écran tourner indéfiniment.
+    // Les chiffres sont ceux de la maquette `direction---web-dashboard`.
+    if (PREVIEW_MODE) {
+      setState({ ...PREVIEW_OVERVIEW, lastUpdated: new Date(), isLoading: false })
+      return
+    }
+
     setState((s) => ({ ...s, isLoading: true }))
 
     const [

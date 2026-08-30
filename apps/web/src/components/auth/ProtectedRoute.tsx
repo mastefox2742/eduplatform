@@ -1,11 +1,17 @@
 import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth.store'
+import { PREVIEW_MODE } from '@/config/preview'
 import type { UserRole } from '@school/shared-types'
 
-// ⚠️ Le mode démo via ?demo= est SUPPRIMÉ.
-// Même si VITE_ALLOW_DEMO_MODE=true, le bypass URL est une faille critique
-// (accès non authentifié à toutes les routes en production).
-// Pour des démonstrations, utiliser des comptes Firebase dédiés.
+// ⚠️ Le bypass `?demo=` reste SUPPRIMÉ : atteindre n'importe quelle route
+// par un simple paramètre d'URL, sur une application connectée à des
+// données réelles, est une faille critique.
+//
+// `PREVIEW_MODE` est autre chose. Il exige une variable d'environnement
+// au moment du build, il est désarmé dès que `import.meta.env.PROD` est
+// vrai, et il n'ouvre l'accès à aucune donnée : aucun backend n'est
+// joignable dans ce mode, les écrans affichent leurs jeux de
+// démonstration internes. Voir config/preview.ts.
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -26,7 +32,9 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     )
   }
 
-  if (!isAuthenticated) {
+  // En aperçu, aucune session n'existe et il n'y a rien à protéger : les
+  // écrans affichent leurs jeux de démonstration internes.
+  if (!isAuthenticated && !PREVIEW_MODE) {
     return <Navigate to="/login" replace />
   }
 

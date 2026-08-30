@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebas
 import { doc, onSnapshot } from 'firebase/firestore'
 import { auth, db } from '@/config/firebase'
 import { useAuthStore } from '@/store/auth.store'
+import { PREVIEW_MODE, previewIdentity } from '@/config/preview'
 import type { UserProfile } from '@school/shared-types'
 
 // ─── Auth listener global ─────────────────────────────────────────────────────
@@ -11,6 +12,25 @@ export function useAuthInit() {
   const { setUser, setProfile, setLoading } = useAuthStore()
 
   useEffect(() => {
+    // Mode aperçu : on ne contacte aucun backend et on pose une identité
+    // fictive, le temps de relire les écrans. Désarmé en production
+    // (voir config/preview.ts).
+    if (PREVIEW_MODE) {
+      const identity = previewIdentity()
+      setProfile({
+        id: 'apercu',
+        email: identity.email,
+        displayName: identity.displayName,
+        role: identity.role,
+        schoolId: 'apercu',
+        isActive: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      } as never)
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     let unsubProfile: (() => void) | null = null
 

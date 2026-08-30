@@ -104,9 +104,16 @@ Aucune clé ne doit apparaître dans une URL, dans un log, ni dans le client
 
 ```bash
 supabase functions deploy ai-proxy
+supabase functions deploy enroll-student
 supabase functions deploy payment-init
 supabase functions deploy payment-webhook --no-verify-jwt
 ```
+
+`enroll-student` (inscription individuelle, V1-11) vérifie le JWT et
+n'a besoin d'aucun secret externe : le service role est injecté par la
+plateforme. Elle dérive l'école du rôle de l'appelant et refuse tout
+appelant qui n'est pas super_admin / directeur / de / secretaire /
+gestionnaire. **Déployée sur `Alpha_school` le 30 août 2026.**
 
 `--no-verify-jwt` n'est requis que pour le webhook : l'appelant est
 l'opérateur de paiement, pas un utilisateur connecté. Son

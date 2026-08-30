@@ -1,46 +1,51 @@
-import { useState, useEffect, useCallback } from 'react'
+/**
+ * Classes de l'école, depuis Supabase (verticale référentiel / identité).
+ * Utilisé par l'écran d'inscription pour proposer des classes réelles,
+ * avec leurs identifiants — indispensables à `enroll-student`.
+ */
+import { useState, useEffect } from 'react'
+import { supabase, usesSupabase } from '@/config/supabase'
 import { useSchoolId } from './useSchool'
-import {
-  subscribeClasses,
-  addClass,
-  updateClass,
-  deleteClass,
-  type ClassCreate,
-  type ClassUpdate,
-} from '@/services/classes.service'
-import type { SchoolClass } from '@school/shared-types'
 
-interface UseClassesResult {
-  classes:  SchoolClass[]
-  loading:  boolean
-  error:    string | null
-  add:      (data: ClassCreate) => Promise<string>
-  update:   (id: string, data: ClassUpdate) => Promise<void>
-  remove:   (id: string) => Promise<void>
+export interface ClassOption {
+  id:         string
+  name:       string
+  levelId:    string | null
+  levelName:  string | null
 }
 
-export function useClasses(): UseClassesResult {
+export function useClasses(): { classes: ClassOption[]; loading: boolean } {
   const schoolId = useSchoolId()
-  const [classes,  setClasses]  = useState<SchoolClass[]>([])
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState<string | null>(null)
+  const enabled  = usesSupabase('identite') || usesSupabase('referentiel')
+  const [classes, setClasses] = useState<ClassOption[]>([])
+  const [loading, setLoading] = useState(enabled)
 
   useEffect(() => {
+    if (!enabled) { setLoading(false); return }
+    let cancelled = false
     setLoading(true)
-    setError(null)
 
-    const unsub = subscribeClasses(
-      schoolId,
-      (data) => { setClasses(data); setLoading(false) },
-      (err)  => { setError(err.message); setLoading(false) }
-    )
+    supabase
+      .from('classes')
+      .select('id, name, level_id, level_name')
+      .eq('school_id', schoolId)
+      .eq('is_active', true)
+      .order('name')
+      .then(({ data }) => {
+        if (cancelled) return
+        setClasses(
+          (data ?? []).map((c) => ({
+            id:        c.id as string,
+            name:      c.name as string,
+            levelId:   (c.level_id as string) ?? null,
+            levelName: (c.level_name as string) ?? null,
+          }))
+        )
+        setLoading(false)
+      })
 
-    return unsub
-  }, [schoolId])
+    return () => { cancelled = true }
+  }, [enabled, schoolId])
 
-  const add    = useCallback((data: ClassCreate) => addClass(schoolId, data), [schoolId])
-  const update = useCallback((id: string, data: ClassUpdate) => updateClass(schoolId, id, data), [schoolId])
-  const remove = useCallback((id: string) => deleteClass(schoolId, id), [schoolId])
-
-  return { classes, loading, error, add, update, remove }
+  return { classes, loading }
 }

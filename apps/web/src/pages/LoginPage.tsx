@@ -6,7 +6,21 @@ import { Input } from '@/components/ui/Input'
 import { useAuthStore } from '@/store/auth.store'
 import { useUIStore } from '@/store/ui.store'
 import { loginWithEmail } from '@/hooks/useAuth'
+import { usesSupabase } from '@/config/supabase'
 import { UserRole } from '@school/shared-types'
+
+// Comptes de démonstration. Sur Supabase (verticale identité), ce sont les
+// vrais comptes semés de l'école pilote « La Référence ». Le mot de passe est
+// celui posé côté dashboard pour la présentation client.
+const DEMO_ACCOUNTS = usesSupabase('identite')
+  ? [
+      { label: '👔 Direction',  email: 'direction@lareference.cg', password: 'DemoAlpha2026!' },
+      { label: '📚 Professeur', email: 'okemba@lareference.cg',    password: 'DemoAlpha2026!' },
+    ]
+  : [
+      { label: '👔 Direction',  email: 'direction@demo.fr', password: 'demo1234' },
+      { label: '📚 Professeur', email: 'prof@demo.fr',      password: 'demo1234' },
+    ]
 
 export function LoginPage() {
   const { isAuthenticated, role } = useAuthStore()
@@ -30,7 +44,12 @@ export function LoginPage() {
     try {
       await loginWithEmail(email, password)
     } catch (err: unknown) {
-      const msg = (err as { code?: string }).code === 'auth/invalid-credential'
+      const code = (err as { code?: string }).code
+      const message = (err as { message?: string }).message ?? ''
+      const badCreds =
+        code === 'auth/invalid-credential' ||
+        /invalid login|invalid credential|email not confirmed/i.test(message)
+      const msg = badCreds
         ? 'Email ou mot de passe incorrect.'
         : 'Une erreur est survenue. Réessayez.'
       addToast({ type: 'error', title: 'Connexion impossible', message: msg })
@@ -101,10 +120,7 @@ export function LoginPage() {
               Comptes de démonstration
             </p>
             <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: '👔 Direction', email: 'direction@demo.fr', password: 'demo1234' },
-                { label: '📚 Professeur', email: 'prof@demo.fr',      password: 'demo1234' },
-              ].map((demo) => (
+              {DEMO_ACCOUNTS.map((demo) => (
                 <button
                   key={demo.email}
                   type="button"

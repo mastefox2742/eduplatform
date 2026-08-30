@@ -29,3 +29,13 @@ screenshots-video/
 .DS_Store
 Thumbs.db
 service-account.json
+
+# Media et supports de communication — hors perimetre du depot.
+# Le depot porte le code de l'ERP ; les videos promotionnelles, captures
+# et maquettes exportees vivent ailleurs. Elles alourdissent l'historique
+# sans qu'aucun test ni aucune revue ne les regarde.
+*.mp4
+*.mov
+alpha-promo/
+screenshots-video/
+preview-*.png

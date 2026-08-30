@@ -86,11 +86,20 @@ depuis lui — il n'y a pas de tâche `test` a la racine :
 cd functions && npx jest
 ```
 
-25 tests, tous verts au 30 aout 2026. C'est peu : la couverture porte
-sur le service IA et pas encore sur les regles metier (validation,
-paiement, RLS). Le SQL d'acceptation de §26 est dans
-`supabase/tests/acceptance_26.sql` et n'a jamais ete execute contre la
-base.
+25 tests unitaires, tous verts au 30 aout 2026. C'est peu : la couverture
+porte sur le service IA et pas encore sur les regles metier.
+
+Le SQL d'acceptation de §26 est dans `supabase/tests/acceptance_26.sql` :
+10 blocs qui eprouvent l'isolation multi-tenant, les perimetres
+enseignant / parent, la confidentialite des donnees de sante,
+l'historisation des notes, l'idempotence des paiements, la file hors
+ligne et le verrouillage de periode. **Execute et vert contre la base
+reelle `Alpha_school` le 30 aout 2026** (transaction annulee, sans
+trace). Deux defauts du script lui-meme, jamais reveles faute d'avoir
+tourne, ont ete corriges a cette occasion : la lecture de `grade_history`
+se fait desormais cote direction (la RLS la reserve au management), et le
+jeu d'essai cree l'annee et le trimestre T1 que le backfill de `006` ne
+pose que pour les ecoles anterieures a la migration.
 
 ---
 

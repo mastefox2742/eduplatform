@@ -666,7 +666,7 @@ coût qui grandit.
 
 | # | Sujet | Pourquoi maintenant | État |
 |---|---|---|---|
-| DT-01 | Appliquer les migrations sur Supabase | Le schéma n'a jamais été exécuté contre une base réelle | ⬜ **bloqué** : accès requis |
+| DT-01 | Appliquer les migrations sur Supabase | Le schéma n'a jamais été exécuté contre une base réelle | ✅ 17 migrations + seed sur `Alpha_school` ; RLS 138/277 ; acceptation §26 verte |
 | DT-02 | Sortie de Firebase, verticale par verticale | Deux sources de vérité finissent par diverger | 🟡 vie scolaire et pédagogie migrées |
 | DT-03 | Types générés depuis le schéma | Les types sont écrits à la main, ils dériveront | ⬜ |
 | DT-04 | `SECURITY_ARCHITECTURE.md` obsolète | Il décrit Firebase, pas Supabase — contredit le reste | ⬜ |

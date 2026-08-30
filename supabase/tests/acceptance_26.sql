@@ -66,6 +66,7 @@ DECLARE
   v_classe_a1 UUID := 'cccccccc-0000-0000-0000-000000000001';
   v_classe_a2 UUID := 'cccccccc-0000-0000-0000-000000000002';
   v_maths     UUID := 'dddddddd-0000-0000-0000-000000000001';
+  v_year_a    UUID := '99999999-0000-0000-0000-000000000001';
 BEGIN
   -- Écoles
   INSERT INTO schools (id, name, slug, academic_year) VALUES
@@ -129,6 +130,15 @@ BEGIN
   -- Données santé pour eleve_a1
   INSERT INTO student_health (student_id, school_id, blood_group, allergies)
   VALUES (v_eleve_a1, v_school_a, 'O+', ARRAY['arachide']);
+
+  -- Année et trimestre T1 de l'école A. Le backfill de 006 ne couvre que
+  -- les écoles présentes au moment de la migration ; une école créée
+  -- pendant le test n'en a pas — on les pose donc explicitement (§5.2).
+  INSERT INTO academic_years (id, school_id, label, starts_on, ends_on, is_current)
+  VALUES (v_year_a, v_school_a, '2025-2026', DATE '2025-09-01', DATE '2026-07-31', TRUE);
+
+  INSERT INTO academic_periods (school_id, year_id, code, label, order_num, starts_on, ends_on)
+  VALUES (v_school_a, v_year_a, 'T1', '1er trimestre', 1, DATE '2025-09-01', DATE '2025-12-15');
 END
 $seed$;
 
@@ -289,12 +299,21 @@ BEGIN
   -- Modification : doit laisser une trace
   UPDATE grades SET score = 16 WHERE id = v_grade;
 
+  -- L'historique se lit depuis la direction / le DE (politique ghist_read),
+  -- jamais depuis l'enseignant : on rebascule en directeur pour le vérifier.
+  PERFORM login_as('aaaaaaaa-0000-0000-0000-000000000001'::UUID);  -- directeur A
+
   SELECT COUNT(*) INTO n FROM grade_history WHERE grade_id = v_grade;
   PERFORM assert(n = 1, 'La modification de note est historisee');
 
   SELECT COUNT(*) INTO n FROM grade_history
    WHERE grade_id = v_grade AND old_score = 14 AND new_score = 16;
   PERFORM assert(n = 1, 'L historique retient l ancienne ET la nouvelle valeur');
+
+  -- L'enseignant, lui, ne lit pas l'historique (audit réservé au management)
+  PERFORM login_as(v_prof_a1);
+  SELECT COUNT(*) INTO n FROM grade_history WHERE grade_id = v_grade;
+  PERFORM assert(n = 0, 'L enseignant ne lit pas l historique des notes');
 END
 $t5$;
 

@@ -14,8 +14,18 @@
  */
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+// Repli DÉMO (école pilote « La Référence », projet Alpha_school). Ces valeurs
+// sont PUBLIQUES — l'URL et la clé anon vivent de toute façon dans le bundle
+// client, la sécurité repose sur la RLS. Le repli ne s'active qu'en build de
+// production sans variable d'env fournie (le déploiement Vercel de la démo).
+// En développement, l'absence d'env laisse Supabase non configuré → Firebase.
+const DEMO_URL  = 'https://niuuropuwxefctoulpml.supabase.co'
+const DEMO_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pdXVyb3B1d3hlZmN0b3VscG1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwOTE5MzMsImV4cCI6MjEwMzY2NzkzM30.BdP4vhX1KEKIcRpLUnqMIMAc2TR9BRqk7pSePDJ_r8Y'
+
+const SUPABASE_URL      = (import.meta.env.VITE_SUPABASE_URL as string | undefined)
+  ?? (import.meta.env.PROD ? DEMO_URL : undefined)
+const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)
+  ?? (import.meta.env.PROD ? DEMO_ANON : undefined)
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.error(
@@ -49,12 +59,19 @@ export const isSupabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY)
  * On bascule une verticale à la fois, et on retire le chemin
  * Firebase dès qu'elle est validée.
  */
+// Un drapeau explicite (`VITE_SB_*`) prime toujours. À défaut, identité et
+// référentiel — les deux verticales portées par la démo — s'activent dans un
+// build de production ; les autres restent sur Firebase tant qu'elles ne sont
+// pas migrées et vérifiées.
+const flag = (value: string | undefined, demoDefault: boolean): boolean =>
+  value !== undefined ? value === 'true' : (import.meta.env.PROD && demoDefault)
+
 export const SUPABASE_VERTICALS = {
-  referentiel: import.meta.env.VITE_SB_REFERENTIEL === 'true',
-  identite:    import.meta.env.VITE_SB_IDENTITE    === 'true',
-  vieScolaire: import.meta.env.VITE_SB_VIE_SCOLAIRE === 'true',
-  pedagogie:   import.meta.env.VITE_SB_PEDAGOGIE   === 'true',
-  finance:     import.meta.env.VITE_SB_FINANCE     === 'true',
+  referentiel: flag(import.meta.env.VITE_SB_REFERENTIEL,  true),
+  identite:    flag(import.meta.env.VITE_SB_IDENTITE,     true),
+  vieScolaire: flag(import.meta.env.VITE_SB_VIE_SCOLAIRE, false),
+  pedagogie:   flag(import.meta.env.VITE_SB_PEDAGOGIE,    false),
+  finance:     flag(import.meta.env.VITE_SB_FINANCE,      false),
 } as const
 
 export type Vertical = keyof typeof SUPABASE_VERTICALS

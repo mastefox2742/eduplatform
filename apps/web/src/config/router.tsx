@@ -9,6 +9,7 @@ import { UnauthorizedPage } from '@/pages/UnauthorizedPage'
 import { UserRole } from '@school/shared-types'
 
 const DesignPage         = lazy(() => import('@/pages/DesignPage').then(m => ({ default: m.DesignPage })))
+const DirectionBulletins = lazy(() => import('@/pages/direction/BulletinsPage').then(m => ({ default: m.DirectionBulletinsPage })))
 const DirectionOverview  = lazy(() => import('@/pages/direction/OverviewPage').then(m => ({ default: m.DirectionOverviewPage })))
 const DirectionDashboard = lazy(() => import('@/pages/direction/DashboardPage').then(m => ({ default: m.DirectionDashboardPage })))
 const TeacherDashboard   = lazy(() => import('@/pages/teacher/DashboardPage').then(m => ({ default: m.TeacherDashboardPage })))
@@ -67,6 +68,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
             <PageWrapper><DirectionOverview /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'direction/bulletins',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
+            <PageWrapper><DirectionBulletins /></PageWrapper>
           </ProtectedRoute>
         ),
       },

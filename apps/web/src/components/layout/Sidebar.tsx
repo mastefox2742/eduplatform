@@ -51,9 +51,12 @@ const DIRECTION_GROUPS: NavGroup[] = [
     items: [
       { to: '/direction',             label: 'Tableau de bord',      icon: ICONS.dashboard },
       { to: '/direction/bulletins',   label: 'Validation bulletins', icon: ICONS.bulletin },
+      { to: '/direction/admissions',  label: 'Admissions',           icon: ICONS.userCheck },
       { to: '/direction/students',    label: 'Élèves & inscriptions', icon: ICONS.students },
       { to: '/direction/teachers',    label: 'Corps enseignant',     icon: ICONS.teachers },
       { to: '/direction/budget',      label: 'Finance & caisse',     icon: ICONS.finance },
+      { to: '/direction/billing',     label: 'Facturation & impayés', icon: ICONS.bill },
+      { to: '/direction/hr',          label: 'Ressources humaines',  icon: ICONS.userCheck },
     ],
   },
   {
@@ -69,6 +72,9 @@ const DIRECTION_GROUPS: NavGroup[] = [
   {
     label: 'Vie scolaire & suivi',
     items: [
+      { to: '/direction/school-life', label: 'Vie scolaire',         icon: ICONS.discipline },
+      { to: '/direction/risk',       label: 'Élèves en difficulté', icon: ICONS.warning },
+      { to: '/direction/communication', label: 'Communication',     icon: ICONS.megaphone },
       { to: '/direction/attendance', label: 'Présence enseignants', icon: ICONS.attendance },
       { to: '/direction/reports',    label: 'Rapports & inspection', icon: ICONS.reports },
       { to: '/direction/exports',    label: 'Documents & exports',   icon: ICONS.download },
@@ -76,6 +82,14 @@ const DIRECTION_GROUPS: NavGroup[] = [
     ],
   },
 ]
+
+/** Réservé au rôle éditeur (§4.2). Jamais affiché à un directeur. */
+const PLATFORM_GROUP: NavGroup = {
+  label: 'Éditeur de la plateforme',
+  items: [
+    { to: '/direction/platform', label: 'Console éditeur', icon: ICONS.shield },
+  ],
+}
 
 const TEACHER_GROUPS: NavGroup[] = [
   {
@@ -111,10 +125,15 @@ export function Sidebar() {
   const activeProfile = demoProfile ?? profile
   const role = demoProfile?.role ?? storeRole
 
+  // La console éditeur n'est pas montrée à un directeur : il administre son
+  // établissement, pas le parc. L'isolation multi-tenant est aussi appliquée
+  // par la route et par les politiques RLS — ceci n'est que la navigation.
   const groups =
-    role === UserRole.DIRECTION || role === UserRole.ADMIN
-      ? DIRECTION_GROUPS
-      : TEACHER_GROUPS
+    role === UserRole.ADMIN
+      ? [...DIRECTION_GROUPS, PLATFORM_GROUP]
+      : role === UserRole.DIRECTION
+        ? DIRECTION_GROUPS
+        : TEACHER_GROUPS
 
   const collapsed = sidebarCollapsed
 

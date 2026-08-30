@@ -10,6 +10,13 @@ import { UserRole } from '@school/shared-types'
 
 const DesignPage         = lazy(() => import('@/pages/DesignPage').then(m => ({ default: m.DesignPage })))
 const DirectionBulletins = lazy(() => import('@/pages/direction/BulletinsPage').then(m => ({ default: m.DirectionBulletinsPage })))
+const CommunicationPage  = lazy(() => import('@/pages/direction/CommunicationPage').then(m => ({ default: m.CommunicationPage })))
+const RiskPage           = lazy(() => import('@/pages/direction/RiskPage').then(m => ({ default: m.RiskPage })))
+const PlatformPage       = lazy(() => import('@/pages/direction/PlatformPage').then(m => ({ default: m.PlatformPage })))
+const AdmissionsPage     = lazy(() => import('@/pages/direction/AdmissionsPage').then(m => ({ default: m.AdmissionsPage })))
+const SchoolLifePage     = lazy(() => import('@/pages/direction/SchoolLifePage').then(m => ({ default: m.SchoolLifePage })))
+const BillingPage        = lazy(() => import('@/pages/direction/BillingPage').then(m => ({ default: m.BillingPage })))
+const HrPage             = lazy(() => import('@/pages/direction/HrPage').then(m => ({ default: m.HrPage })))
 const DirectionOverview  = lazy(() => import('@/pages/direction/OverviewPage').then(m => ({ default: m.DirectionOverviewPage })))
 const DirectionDashboard = lazy(() => import('@/pages/direction/DashboardPage').then(m => ({ default: m.DirectionDashboardPage })))
 const TeacherDashboard   = lazy(() => import('@/pages/teacher/DashboardPage').then(m => ({ default: m.TeacherDashboardPage })))
@@ -68,6 +75,62 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
             <PageWrapper><DirectionOverview /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'direction/communication',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
+            <PageWrapper><CommunicationPage /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'direction/risk',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
+            <PageWrapper><RiskPage /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'direction/platform',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+            <PageWrapper><PlatformPage /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'direction/admissions',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
+            <PageWrapper><AdmissionsPage /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'direction/school-life',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
+            <PageWrapper><SchoolLifePage /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'direction/billing',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
+            <PageWrapper><BillingPage /></PageWrapper>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'direction/hr',
+        element: (
+          <ProtectedRoute allowedRoles={[UserRole.DIRECTION, UserRole.ADMIN]}>
+            <PageWrapper><HrPage /></PageWrapper>
           </ProtectedRoute>
         ),
       },

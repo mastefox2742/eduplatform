@@ -22,7 +22,7 @@ CREATE TYPE leave_status     AS ENUM ('demande', 'approuve', 'refuse', 'annule')
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE library_books (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   isbn          TEXT,
   title         TEXT NOT NULL,
@@ -45,7 +45,7 @@ CREATE INDEX idx_books_school ON library_books(school_id);
 CREATE INDEX idx_books_title  ON library_books USING gin (title gin_trgm_ops);
 
 CREATE TABLE library_copies (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   book_id      UUID NOT NULL REFERENCES library_books(id) ON DELETE CASCADE,
   barcode      TEXT UNIQUE,
@@ -54,7 +54,7 @@ CREATE TABLE library_copies (
 );
 
 CREATE TABLE library_loans (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   book_id       UUID NOT NULL REFERENCES library_books(id),
   copy_id       UUID REFERENCES library_copies(id),
@@ -75,7 +75,7 @@ CREATE INDEX idx_loans_borrower ON library_loans(borrower_id, status);
 CREATE INDEX idx_loans_overdue  ON library_loans(school_id, due_date) WHERE status = 'en_cours';
 
 CREATE TABLE library_reservations (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   book_id      UUID NOT NULL REFERENCES library_books(id) ON DELETE CASCADE,
   user_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -90,7 +90,7 @@ CREATE TABLE library_reservations (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE transport_vehicles (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   plate_number   TEXT NOT NULL,
   model          TEXT,
@@ -107,7 +107,7 @@ CREATE TABLE transport_vehicles (
 );
 
 CREATE TABLE transport_routes (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   name         TEXT NOT NULL,
   vehicle_id   UUID REFERENCES transport_vehicles(id),
@@ -119,7 +119,7 @@ CREATE TABLE transport_routes (
 );
 
 CREATE TABLE transport_stops (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   route_id    UUID NOT NULL REFERENCES transport_routes(id) ON DELETE CASCADE,
   name        TEXT NOT NULL,
@@ -131,7 +131,7 @@ CREATE TABLE transport_stops (
 );
 
 CREATE TABLE transport_subscriptions (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   route_id      UUID NOT NULL REFERENCES transport_routes(id) ON DELETE CASCADE,
@@ -145,7 +145,7 @@ CREATE TABLE transport_subscriptions (
 
 -- Présence à bord (§18.2)
 CREATE TABLE transport_boardings (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   route_id    UUID NOT NULL REFERENCES transport_routes(id),
   student_id  UUID NOT NULL REFERENCES profiles(id),
@@ -161,7 +161,7 @@ CREATE TABLE transport_boardings (
 CREATE INDEX idx_boardings_date ON transport_boardings(school_id, date);
 
 CREATE TABLE transport_incidents (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   vehicle_id  UUID REFERENCES transport_vehicles(id),
   route_id    UUID REFERENCES transport_routes(id),
@@ -178,7 +178,7 @@ CREATE TABLE transport_incidents (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE infirmary_visits (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   arrived_at     TIMESTAMPTZ DEFAULT NOW(),
@@ -199,7 +199,7 @@ CREATE TABLE infirmary_visits (
 CREATE INDEX idx_infirmary_student ON infirmary_visits(student_id, arrived_at DESC);
 
 CREATE TABLE vaccinations (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id   UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   vaccine      TEXT NOT NULL,
@@ -215,7 +215,7 @@ CREATE TABLE vaccinations (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE stock_items (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   site_id        UUID REFERENCES sites(id),
   code           TEXT,
@@ -237,7 +237,7 @@ CREATE INDEX idx_stock_low ON stock_items(school_id)
   WHERE quantity <= alert_threshold;
 
 CREATE TABLE stock_movements (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   item_id      UUID NOT NULL REFERENCES stock_items(id) ON DELETE CASCADE,
   kind         stock_move_kind NOT NULL,
@@ -272,7 +272,7 @@ CREATE TRIGGER trg_stock_movement
   FOR EACH ROW EXECUTE FUNCTION apply_stock_movement();
 
 CREATE TABLE maintenance_tickets (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   site_id       UUID REFERENCES sites(id),
   reference     TEXT,
@@ -301,7 +301,7 @@ CREATE INDEX idx_maint_open ON maintenance_tickets(school_id, priority)
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE leave_requests (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   staff_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   staff_name    TEXT,
@@ -324,7 +324,7 @@ CREATE INDEX idx_leaves_staff ON leave_requests(staff_id, date_from DESC);
 CREATE INDEX idx_leaves_pending ON leave_requests(school_id) WHERE status = 'demande';
 
 CREATE TABLE leave_balances (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   staff_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   academic_year TEXT NOT NULL,
@@ -336,7 +336,7 @@ CREATE TABLE leave_balances (
 
 -- Dossier du personnel non enseignant (§18.5)
 CREATE TABLE staff_records (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   staff_id       UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   employee_num   TEXT,
@@ -360,7 +360,7 @@ CREATE TABLE staff_records (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE canteen_menus (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   date         DATE NOT NULL,
   meal         TEXT DEFAULT 'dejeuner' CHECK (meal IN ('petit_dejeuner','dejeuner','gouter')),
@@ -371,7 +371,7 @@ CREATE TABLE canteen_menus (
 );
 
 CREATE TABLE canteen_subscriptions (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   academic_year TEXT NOT NULL,
@@ -383,7 +383,7 @@ CREATE TABLE canteen_subscriptions (
 );
 
 CREATE TABLE canteen_meals_served (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id  UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   date        DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -398,7 +398,7 @@ CREATE TABLE canteen_meals_served (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE visitors (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   site_id       UUID REFERENCES sites(id),
   full_name     TEXT NOT NULL,

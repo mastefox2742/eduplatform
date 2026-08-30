@@ -41,7 +41,7 @@ CREATE TYPE school_cycle AS ENUM ('primaire', 'college', 'lycee');
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE sites (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   name          TEXT NOT NULL,
   short_name    TEXT,
@@ -68,7 +68,7 @@ ALTER TABLE levels  ADD COLUMN IF NOT EXISTS cycle_enum school_cycle;
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE user_roles (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   user_id       UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   role          staff_role NOT NULL,
@@ -116,7 +116,7 @@ CREATE TABLE user_active_context (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE role_permissions (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID REFERENCES schools(id) ON DELETE CASCADE,  -- NULL = défaut plateforme
   role            staff_role NOT NULL,
   resource        TEXT NOT NULL,          -- 'grades', 'bulletins', 'payments', ...
@@ -139,7 +139,7 @@ CREATE UNIQUE INDEX idx_role_permissions_default
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE teacher_assignments (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   teacher_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   class_id        UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,

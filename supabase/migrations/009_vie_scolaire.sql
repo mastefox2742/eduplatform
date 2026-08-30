@@ -27,7 +27,7 @@ CREATE TYPE exit_status AS ENUM ('demande', 'approuve', 'refuse', 'sorti', 'reve
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE absence_reasons (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   code           TEXT NOT NULL,
   label          TEXT NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE absence_reasons (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE absence_justifications (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   record_id       UUID REFERENCES attendance_records(id) ON DELETE CASCADE,
@@ -83,7 +83,7 @@ ALTER TABLE attendance_sessions ADD COLUMN IF NOT EXISTS is_locked  BOOLEAN DEFA
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE exit_permissions (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id        UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id       UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   requested_by     UUID REFERENCES profiles(id),
@@ -114,7 +114,7 @@ CREATE INDEX idx_exits_pending ON exit_permissions(school_id) WHERE status = 'de
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE incidents (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   reference       TEXT,
   title           TEXT NOT NULL,
@@ -139,7 +139,7 @@ CREATE INDEX idx_incidents_open   ON incidents(school_id, severity) WHERE status
 
 -- Participants et témoins d'un incident
 CREATE TABLE incident_participants (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   incident_id   UUID NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
   student_id    UUID REFERENCES profiles(id) ON DELETE CASCADE,
   person_name   TEXT,
@@ -150,7 +150,7 @@ CREATE TABLE incident_participants (
 
 -- Convocations de parents (§11.2)
 CREATE TABLE parent_summons (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   incident_id   UUID REFERENCES incidents(id) ON DELETE CASCADE,
   student_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -183,7 +183,7 @@ ALTER TABLE discipline_records ADD COLUMN IF NOT EXISTS closed_at   TIMESTAMPTZ;
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE teacher_absences (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   teacher_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   date_from      DATE NOT NULL,
@@ -199,7 +199,7 @@ CREATE TABLE teacher_absences (
 CREATE INDEX idx_teacher_abs ON teacher_absences(school_id, date_from DESC);
 
 CREATE TABLE replacements (
-  id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id          UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   slot_id            UUID REFERENCES schedule_slots(id) ON DELETE CASCADE,
   absence_id         UUID REFERENCES teacher_absences(id) ON DELETE CASCADE,
@@ -223,7 +223,7 @@ CREATE INDEX idx_replacements_date ON replacements(school_id, date);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE lesson_logs (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   class_id       UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
   subject_id     UUID REFERENCES subjects(id),
@@ -256,7 +256,7 @@ CREATE INDEX idx_lesson_logs_teacher ON lesson_logs(teacher_id, date DESC);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE rooms (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   site_id      UUID REFERENCES sites(id),
   name         TEXT NOT NULL,

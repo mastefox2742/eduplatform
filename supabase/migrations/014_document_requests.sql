@@ -39,7 +39,7 @@ CREATE TYPE official_document_kind AS ENUM (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE document_requests (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   reference       TEXT NOT NULL,
   kind            official_document_kind NOT NULL,
@@ -108,7 +108,7 @@ CREATE INDEX idx_docreq_events ON document_request_events(request_id, created_at
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE document_templates (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   kind          official_document_kind NOT NULL,
   name          TEXT NOT NULL,

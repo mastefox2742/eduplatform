@@ -38,7 +38,7 @@ CREATE TYPE risk_status   AS ENUM ('ouvert', 'en_suivi', 'resolu', 'abandonne');
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE student_guardians (
-  id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id          UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id         UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   guardian_id        UUID REFERENCES profiles(id) ON DELETE SET NULL,
@@ -65,7 +65,7 @@ CREATE UNIQUE INDEX idx_guardians_one_financial
 
 -- Personnes habilitées à récupérer l'enfant sans être tuteur (§16.5)
 CREATE TABLE authorized_pickups (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   full_name     TEXT NOT NULL,
@@ -121,7 +121,7 @@ CREATE INDEX idx_health_access ON health_access_log(student_id, accessed_at DESC
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE student_documents (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   kind          document_kind NOT NULL DEFAULT 'autre',
@@ -141,7 +141,7 @@ CREATE INDEX idx_student_docs ON student_documents(student_id, kind);
 
 -- Pièces attendues par niveau, pour le suivi des dossiers incomplets (§9)
 CREATE TABLE required_documents (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   level_id      UUID REFERENCES levels(id) ON DELETE CASCADE,
   kind          document_kind NOT NULL,
@@ -156,7 +156,7 @@ CREATE TABLE required_documents (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE consents (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   user_id       UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   -- Consentement donné POUR un élève (cas du parent qui consent pour l'enfant)
@@ -177,7 +177,7 @@ CREATE INDEX idx_consents_user ON consents(user_id, purpose) WHERE granted;
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE student_enrollments (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   academic_year   TEXT NOT NULL,
@@ -206,7 +206,7 @@ CREATE INDEX idx_enrollments_class ON student_enrollments(class_id, academic_yea
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE risk_signals (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   kind           risk_kind NOT NULL,
@@ -231,7 +231,7 @@ CREATE INDEX idx_risk_open    ON risk_signals(school_id, priority, detected_at D
 
 -- Notes de suivi d'un signal
 CREATE TABLE risk_followups (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   signal_id   UUID NOT NULL REFERENCES risk_signals(id) ON DELETE CASCADE,
   author_id   UUID REFERENCES profiles(id),
   author_name TEXT,

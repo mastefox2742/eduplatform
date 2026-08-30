@@ -28,7 +28,7 @@ CREATE TYPE period_kind AS ENUM ('trimestre', 'semestre');
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE academic_years (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   label         TEXT NOT NULL,              -- "2025-2026"
   starts_on     DATE NOT NULL,
@@ -45,7 +45,7 @@ CREATE UNIQUE INDEX idx_year_one_current ON academic_years(school_id) WHERE is_c
 
 -- Périodes (T1/T2/T3 ou semestres), avec fenêtre de saisie des notes (§5.2)
 CREATE TABLE academic_periods (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id         UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   year_id           UUID NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
   code              TEXT NOT NULL,           -- 'T1', 'T2', 'T3', 'S1'…
@@ -70,7 +70,7 @@ CREATE INDEX idx_periods_year ON academic_periods(year_id, order_num);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE grading_rules (
-  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id             UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   level_id              UUID REFERENCES levels(id) ON DELETE CASCADE,  -- NULL = toute l'école
   cycle                 school_cycle,
@@ -90,7 +90,7 @@ CREATE TABLE grading_rules (
 
 -- Pondération par type d'évaluation (§5.2)
 CREATE TABLE assessment_weights (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   level_id      UUID REFERENCES levels(id) ON DELETE CASCADE,
   kind          assessment_kind NOT NULL,
@@ -100,7 +100,7 @@ CREATE TABLE assessment_weights (
 
 -- Coefficient d'une matière par niveau (§5.1)
 CREATE TABLE subject_coefficients (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   subject_id    UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
   level_id      UUID NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
@@ -112,7 +112,7 @@ CREATE TABLE subject_coefficients (
 
 -- Programme par matière/niveau/période (§5.2)
 CREATE TABLE curricula (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   subject_id    UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
   level_id      UUID NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
@@ -129,7 +129,7 @@ CREATE INDEX idx_curricula ON curricula(school_id, subject_id, level_id);
 
 -- Suivi de la progression réelle sur le programme (§10.1)
 CREATE TABLE curriculum_progress (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   curriculum_id  UUID NOT NULL REFERENCES curricula(id) ON DELETE CASCADE,
   class_id       UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
@@ -148,7 +148,7 @@ CREATE TABLE curriculum_progress (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE applications (
-  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id           UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   site_id             UUID REFERENCES sites(id),
   lead_id             UUID REFERENCES inscription_leads(id),   -- origine CRM
@@ -204,7 +204,7 @@ CREATE INDEX idx_applications_year   ON applications(school_id, academic_year);
 
 -- Pièces jointes à une candidature (§6.1)
 CREATE TABLE application_documents (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   application_id UUID NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
   kind           document_kind NOT NULL,
   label          TEXT,
@@ -235,7 +235,7 @@ CREATE INDEX idx_app_events ON application_events(application_id, created_at DES
 
 -- Places disponibles par niveau (§8.1 — « places disponibles »)
 CREATE TABLE level_capacities (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   level_id       UUID NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
   academic_year  TEXT NOT NULL,

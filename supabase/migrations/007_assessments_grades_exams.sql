@@ -31,7 +31,7 @@ CREATE TYPE exam_kind AS ENUM ('blanc', 'etat', 'interne', 'concours');
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE assessments (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   class_id       UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
   subject_id     UUID REFERENCES subjects(id),
@@ -70,7 +70,7 @@ CREATE INDEX idx_assessments_state  ON assessments(school_id, state);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE grades (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   assessment_id  UUID NOT NULL REFERENCES assessments(id) ON DELETE CASCADE,
   student_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -136,7 +136,7 @@ ALTER TABLE bulletins ADD COLUMN IF NOT EXISTS is_ai_generated BOOLEAN DEFAULT F
 
 -- Synthèse d'un bulletin complet (toutes matières) — le document signé
 CREATE TABLE bulletin_summaries (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id         UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id        UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   class_id          UUID REFERENCES classes(id),
@@ -188,7 +188,7 @@ CREATE TABLE bulletin_corrections (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE workflow_configs (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id         UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   process           TEXT NOT NULL,     -- 'grades','bulletin','absence','sanction_legere', ...
   step_num          SMALLINT NOT NULL,
@@ -203,7 +203,7 @@ CREATE TABLE workflow_configs (
 
 -- Instance d'un workflow en cours
 CREATE TABLE workflow_instances (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   process        TEXT NOT NULL,
   entity_table   TEXT NOT NULL,
@@ -236,7 +236,7 @@ CREATE TABLE workflow_steps_log (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE exams (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   kind           exam_kind NOT NULL DEFAULT 'interne',
   name           TEXT NOT NULL,
@@ -251,7 +251,7 @@ CREATE TABLE exams (
 );
 
 CREATE TABLE exam_sessions (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   exam_id      UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
   subject_id   UUID REFERENCES subjects(id),
@@ -266,7 +266,7 @@ CREATE TABLE exam_sessions (
 );
 
 CREATE TABLE exam_candidates (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   exam_id        UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
   student_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -285,7 +285,7 @@ CREATE INDEX idx_exam_candidates ON exam_candidates(exam_id, result_status);
 
 -- Surveillants affectés (§13.2)
 CREATE TABLE exam_invigilators (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id  UUID NOT NULL REFERENCES exam_sessions(id) ON DELETE CASCADE,
   teacher_id  UUID NOT NULL REFERENCES profiles(id),
   role        TEXT DEFAULT 'surveillant',

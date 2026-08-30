@@ -8,7 +8,9 @@ max_rows = 1000
 [db]
 port = 54322
 shadow_port = 54320
-major_version = 15
+# Le projet distant (niuuropuwxefctoulpml) tourne en PostgreSQL 17.
+# Un local en 15 ferait passer des migrations qui echoueraient en ligne.
+major_version = 17
 
 [studio]
 port = 54323

@@ -10,7 +10,10 @@
 -- ============================================================
 
 -- Extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- uuid-ossp n'est plus necessaire : gen_random_uuid() est integre a
+-- PostgreSQL depuis la 13. Supabase installe les extensions dans le
+-- schema `extensions`, hors du chemin de recherche des migrations, ce
+-- qui rendait uuid_generate_v4() introuvable a l'application.
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";  -- Pour la recherche full-text
 
 -- ═══════════════════════════════════════════════════════════════
@@ -44,7 +47,7 @@ CREATE TYPE remplacement_status AS ENUM ('pending', 'accepted', 'rejected', 'val
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE schools (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name             TEXT NOT NULL,
   slug             TEXT UNIQUE NOT NULL,
   logo_url         TEXT,
@@ -52,7 +55,9 @@ CREATE TABLE schools (
   address_city     TEXT,
   address_country  TEXT DEFAULT 'CI',
   contact_email    TEXT,
-  plan             school_plan DEFAULT 'trial',
+  -- Une ecole en essai est sur le plan gratuit : l'essai est un statut,
+  -- pas un plan. 'trial' appartient a school_status, pas a school_plan.
+  plan             school_plan DEFAULT 'free',
   status           school_status DEFAULT 'trial',
   active_students  INTEGER DEFAULT 0,
   academic_year    TEXT DEFAULT '2025-2026',
@@ -108,7 +113,7 @@ CREATE INDEX idx_profiles_parent_email ON profiles(parent_email);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE levels (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   name          TEXT NOT NULL,
   short_name    TEXT,
@@ -119,7 +124,7 @@ CREATE TABLE levels (
 );
 
 CREATE TABLE classes (
-  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id           UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   level_id            UUID REFERENCES levels(id),
   name                TEXT NOT NULL,
@@ -140,7 +145,7 @@ CREATE INDEX idx_classes_school ON classes(school_id);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE subjects (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   name         TEXT NOT NULL,
   short_name   TEXT,
@@ -151,7 +156,7 @@ CREATE TABLE subjects (
 );
 
 CREATE TABLE schedule_slots (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   class_id        UUID REFERENCES classes(id) ON DELETE CASCADE,
   teacher_id      UUID REFERENCES profiles(id),
@@ -173,7 +178,7 @@ CREATE INDEX idx_slots_teacher ON schedule_slots(teacher_id);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE bulletins (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id         UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id        UUID NOT NULL REFERENCES profiles(id),
   student_name      TEXT NOT NULL,
@@ -199,7 +204,7 @@ CREATE TABLE bulletins (
 
 -- Évaluations liées à un bulletin
 CREATE TABLE bulletin_assessments (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   bulletin_id   UUID NOT NULL REFERENCES bulletins(id) ON DELETE CASCADE,
   title         TEXT NOT NULL,
   value         NUMERIC(5,2),
@@ -217,7 +222,7 @@ CREATE INDEX idx_bulletins_trimestre ON bulletins(school_id, trimestre);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE attendance_sessions (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   class_id      UUID REFERENCES classes(id),
   class_name    TEXT,
@@ -230,7 +235,7 @@ CREATE TABLE attendance_sessions (
 );
 
 CREATE TABLE attendance_records (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id     UUID NOT NULL REFERENCES attendance_sessions(id) ON DELETE CASCADE,
   student_id     UUID REFERENCES profiles(id),
   student_name   TEXT,
@@ -246,7 +251,7 @@ CREATE INDEX idx_attendance_school_date ON attendance_sessions(school_id, date);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE payments (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id        UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id       UUID REFERENCES profiles(id),
   student_name     TEXT,
@@ -266,7 +271,7 @@ CREATE TABLE payments (
 );
 
 CREATE TABLE cash_payments (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id        UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id       UUID REFERENCES profiles(id),
   student_name     TEXT NOT NULL,
@@ -287,7 +292,7 @@ CREATE TABLE cash_payments (
 );
 
 CREATE TABLE receipts (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   payment_id    UUID REFERENCES payments(id),
   student_id    UUID REFERENCES profiles(id),
@@ -309,7 +314,7 @@ CREATE INDEX idx_payments_school_status ON payments(school_id, status);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE discipline_records (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id         UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id        UUID NOT NULL REFERENCES profiles(id),
   student_name      TEXT NOT NULL,
@@ -336,7 +341,7 @@ CREATE INDEX idx_discipline_school_student ON discipline_records(school_id, stud
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE devoirs (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   class_id       UUID REFERENCES classes(id) ON DELETE CASCADE,
   teacher_id     UUID REFERENCES profiles(id),
@@ -354,7 +359,7 @@ CREATE TABLE devoirs (
 );
 
 CREATE TABLE devoir_submissions (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   devoir_id   UUID NOT NULL REFERENCES devoirs(id) ON DELETE CASCADE,
   student_id  UUID NOT NULL REFERENCES profiles(id),
   status      TEXT DEFAULT 'done' CHECK (status IN ('pending', 'done', 'late')),
@@ -369,7 +374,7 @@ CREATE INDEX idx_devoirs_school_class ON devoirs(school_id, class_id);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE student_xp (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id  UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   total_xp    INTEGER DEFAULT 0,
@@ -385,7 +390,7 @@ CREATE TABLE student_xp (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE announcements (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   author_id    UUID REFERENCES profiles(id),
   author_name  TEXT,
@@ -408,7 +413,7 @@ CREATE INDEX idx_announcements_school ON announcements(school_id, created_at DES
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE message_threads (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   participants UUID[] NOT NULL,
   last_message TEXT,
@@ -417,7 +422,7 @@ CREATE TABLE message_threads (
 );
 
 CREATE TABLE messages (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   thread_id   UUID NOT NULL REFERENCES message_threads(id) ON DELETE CASCADE,
   sender_id   UUID NOT NULL REFERENCES profiles(id),
   sender_name TEXT,
@@ -434,7 +439,7 @@ CREATE INDEX idx_messages_thread ON messages(thread_id, sent_at DESC);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE courses (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   teacher_id     UUID REFERENCES profiles(id),
   teacher_name   TEXT,
@@ -450,7 +455,7 @@ CREATE TABLE courses (
 );
 
 CREATE TABLE exercises (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   course_id      UUID REFERENCES courses(id),
   teacher_id     UUID REFERENCES profiles(id),
@@ -471,7 +476,7 @@ CREATE TABLE exercises (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE teacher_contracts (
-  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id             UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   teacher_id            UUID NOT NULL REFERENCES profiles(id),
   teacher_name          TEXT,
@@ -489,7 +494,7 @@ CREATE TABLE teacher_contracts (
 );
 
 CREATE TABLE monthly_payroll (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id         UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   teacher_id        UUID NOT NULL REFERENCES profiles(id),
   teacher_name      TEXT,
@@ -516,7 +521,7 @@ CREATE TABLE monthly_payroll (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE budget_lines (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id         UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   academic_year     TEXT NOT NULL,
   category          TEXT NOT NULL,
@@ -531,7 +536,7 @@ CREATE TABLE budget_lines (
 );
 
 CREATE TABLE expenses (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   category        TEXT NOT NULL,
   label           TEXT NOT NULL,
@@ -552,7 +557,7 @@ CREATE INDEX idx_expenses_school_category ON expenses(school_id, category, date)
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE export_jobs (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   requested_by  UUID REFERENCES profiles(id),
   dataset       TEXT NOT NULL,
@@ -573,7 +578,7 @@ CREATE TABLE export_jobs (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE inscription_leads (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   parent_name    TEXT NOT NULL,
   parent_phone   TEXT,
@@ -591,7 +596,7 @@ CREATE TABLE inscription_leads (
 );
 
 CREATE TABLE message_logs (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   channel     messaging_channel NOT NULL,
   event_type  TEXT,
@@ -609,7 +614,7 @@ CREATE TABLE message_logs (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE school_configs (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID UNIQUE NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   annee           TEXT DEFAULT '2025-2026',
   trimestres      JSONB DEFAULT '[]'::jsonb,

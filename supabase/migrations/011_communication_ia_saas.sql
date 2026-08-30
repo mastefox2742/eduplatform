@@ -25,7 +25,7 @@ CREATE TYPE support_ticket_kind AS ENUM (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE message_templates (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID REFERENCES schools(id) ON DELETE CASCADE,  -- NULL = modèle plateforme
   code          TEXT NOT NULL,          -- 'absence_alert', 'payment_reminder'…
   channel       messaging_channel NOT NULL,
@@ -47,7 +47,7 @@ CREATE UNIQUE INDEX idx_templates_default
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE message_campaigns (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   title          TEXT NOT NULL,
   template_id    UUID REFERENCES message_templates(id),
@@ -90,7 +90,7 @@ CREATE INDEX idx_receipts_user ON message_receipts(user_id) WHERE read_at IS NUL
 
 -- Jetons de notification push
 CREATE TABLE push_tokens (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   token       TEXT NOT NULL UNIQUE,
   platform    TEXT CHECK (platform IN ('ios','android','web')),
@@ -102,7 +102,7 @@ CREATE TABLE push_tokens (
 
 -- Notifications in-app
 CREATE TABLE notifications (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   user_id      UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   kind         TEXT NOT NULL,
@@ -121,7 +121,7 @@ CREATE INDEX idx_notifs_user ON notifications(user_id, created_at DESC) WHERE NO
 
 -- Règles de messagerie (§17 — horaires, pièces jointes, blocage)
 CREATE TABLE messaging_rules (
-  id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id          UUID UNIQUE NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   allowed_from       TIME DEFAULT '07:00',
   allowed_to         TIME DEFAULT '19:00',
@@ -135,7 +135,7 @@ CREATE TABLE messaging_rules (
 
 -- Signalement de message (§17)
 CREATE TABLE message_flags (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id   UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   message_id  UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
   flagged_by  UUID REFERENCES profiles(id),
@@ -151,7 +151,7 @@ CREATE TABLE message_flags (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE appointments (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   requester_id  UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   staff_id      UUID REFERENCES profiles(id),
@@ -171,7 +171,7 @@ CREATE TABLE appointments (
 CREATE INDEX idx_appointments_staff ON appointments(staff_id, scheduled_at);
 
 CREATE TABLE support_tickets (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   reference     TEXT,
   kind          support_ticket_kind DEFAULT 'question',
@@ -194,7 +194,7 @@ CREATE INDEX idx_tickets_open ON support_tickets(school_id, priority)
   WHERE status NOT IN ('resolu','ferme');
 
 CREATE TABLE support_ticket_replies (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   ticket_id   UUID NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
   author_id   UUID REFERENCES profiles(id),
   author_name TEXT,
@@ -248,7 +248,7 @@ CREATE INDEX idx_ai_logs_blocked ON ai_usage_logs(school_id, verdict)
 
 -- Quotas IA par rôle et par école (§4.1 limites par plan)
 CREATE TABLE ai_quotas (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   role            staff_role NOT NULL,
   requests_hour   INTEGER DEFAULT 20,
@@ -259,7 +259,7 @@ CREATE TABLE ai_quotas (
 -- Solutions de référence fournies par l'enseignant (§12.3)
 -- La correction IA ne peut s'appuyer QUE là-dessus.
 CREATE TABLE teacher_solutions (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   exercise_id    UUID REFERENCES exercises(id) ON DELETE CASCADE,
   assessment_id  UUID REFERENCES assessments(id) ON DELETE CASCADE,
@@ -280,7 +280,7 @@ CREATE INDEX idx_solutions_exercise ON teacher_solutions(exercise_id);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE plan_limits (
-  id                 UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   plan               school_plan NOT NULL UNIQUE,
   max_students       INTEGER,
   max_staff          INTEGER,
@@ -304,7 +304,7 @@ ON CONFLICT (plan) DO NOTHING;
 
 -- Consommation mensuelle par école (facturation SaaS §4.2)
 CREATE TABLE school_usage (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   month           TEXT NOT NULL,             -- "2026-08"
   active_students INTEGER DEFAULT 0,
@@ -319,7 +319,7 @@ CREATE TABLE school_usage (
 );
 
 CREATE TABLE saas_invoices (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   month         TEXT NOT NULL,
   plan          school_plan NOT NULL,
@@ -336,7 +336,7 @@ CREATE TABLE saas_invoices (
 
 -- Impersonation contrôlée avec consentement (§4.2)
 CREATE TABLE impersonation_sessions (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_id       UUID NOT NULL REFERENCES profiles(id),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   target_user_id UUID REFERENCES profiles(id),
@@ -352,7 +352,7 @@ CREATE INDEX idx_impersonation ON impersonation_sessions(school_id, started_at D
 
 -- Versions d'application déployées (§4.2)
 CREATE TABLE app_versions (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   platform      TEXT NOT NULL CHECK (platform IN ('web','ios','android')),
   version       TEXT NOT NULL,
   build_number  INTEGER,
@@ -368,7 +368,7 @@ CREATE TABLE app_versions (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE deletion_requests (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   user_id        UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   requested_by   UUID REFERENCES profiles(id),
@@ -383,7 +383,7 @@ CREATE TABLE deletion_requests (
 );
 
 CREATE TABLE retention_policies (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID REFERENCES schools(id) ON DELETE CASCADE,
   entity        TEXT NOT NULL,
   retain_years  SMALLINT NOT NULL,
@@ -420,7 +420,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity_table, entity_i
 
 -- Détection d'anomalies (§21.4)
 CREATE TABLE security_alerts (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID REFERENCES schools(id) ON DELETE CASCADE,
   kind         TEXT NOT NULL,   -- 'connexion_inhabituelle','export_massif','acces_interdit'
   severity     TEXT DEFAULT 'warning' CHECK (severity IN ('info','warning','critical')),
@@ -455,7 +455,7 @@ $$ LANGUAGE SQL SECURITY DEFINER;
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE sync_operations (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   user_id        UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   client_op_id   TEXT NOT NULL,          -- id généré par l'app mobile

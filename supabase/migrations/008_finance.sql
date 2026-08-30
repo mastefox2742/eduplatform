@@ -34,7 +34,7 @@ CREATE TYPE cash_session_status AS ENUM ('ouverte', 'fermee', 'rapprochee');
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE fee_structures (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   academic_year  TEXT NOT NULL,
   level_id       UUID REFERENCES levels(id) ON DELETE CASCADE,
@@ -50,7 +50,7 @@ CREATE INDEX idx_fee_struct ON fee_structures(school_id, academic_year) WHERE is
 
 -- Lignes de frais d'une grille
 CREATE TABLE fee_items (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id         UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   structure_id      UUID NOT NULL REFERENCES fee_structures(id) ON DELETE CASCADE,
   kind              fee_kind NOT NULL DEFAULT 'scolarite',
@@ -73,7 +73,7 @@ CREATE INDEX idx_fee_items_struct ON fee_items(structure_id);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE discounts (
-  id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id      UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   academic_year  TEXT NOT NULL,
@@ -102,7 +102,7 @@ CREATE INDEX idx_discounts_student ON discounts(student_id, academic_year);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE invoices (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id         UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   student_id        UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   guardian_id       UUID REFERENCES profiles(id),        -- responsable financier
@@ -135,7 +135,7 @@ CREATE INDEX idx_invoices_overdue ON invoices(school_id, due_date)
   WHERE status IN ('emise','partiellement_payee','en_retard');
 
 CREATE TABLE invoice_lines (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   invoice_id   UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
   fee_item_id  UUID REFERENCES fee_items(id),
   kind         fee_kind NOT NULL DEFAULT 'scolarite',
@@ -152,7 +152,7 @@ CREATE INDEX idx_invoice_lines ON invoice_lines(invoice_id);
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE installments (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   invoice_id    UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
   student_id    UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -210,7 +210,7 @@ CREATE INDEX idx_webhooks_unprocessed ON payment_webhooks(received_at) WHERE NOT
 
 -- Remboursements et trop-perçus (§14.2)
 CREATE TABLE refunds (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id     UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   payment_id    UUID REFERENCES payments(id),
   invoice_id    UUID REFERENCES invoices(id),
@@ -232,7 +232,7 @@ CREATE TABLE refunds (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE cash_sessions (
-  id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id        UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   site_id          UUID REFERENCES sites(id),
   cashier_id       UUID NOT NULL REFERENCES profiles(id),
@@ -261,7 +261,7 @@ ALTER TABLE cash_payments ADD COLUMN IF NOT EXISTS installment_id UUID REFERENCE
 
 -- Mouvements de caisse hors scolarité (§14.3)
 CREATE TABLE cash_movements (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   session_id   UUID REFERENCES cash_sessions(id),
   direction    TEXT NOT NULL CHECK (direction IN ('entree','sortie')),
@@ -280,7 +280,7 @@ CREATE TABLE cash_movements (
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE suppliers (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id    UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
   name         TEXT NOT NULL,
   category     TEXT,

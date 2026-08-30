@@ -68,6 +68,7 @@ mais inutile reste en bas.
 | E12 | IA pédagogique encadrée | Différenciation, sous condition de garde-fous | V3 |
 | E13 | Hors ligne et synchronisation | Verrou technique sur le marché visé | V3 |
 | E14 | Services campus | Transport, cantine, bibliothèque, infirmerie | V3 |
+| E16 | Ressources humaines | Les salaires sont la première dépense de l'école ; rien ne les portait | V2 |
 | E15 | Console SaaS | Nécessaire dès la deuxième école cliente | V4 |
 
 ---
@@ -224,12 +225,33 @@ mais inutile reste en bas.
 - [x] Motifs configurables par école
 - [ ] Écran mobile de dépôt côté parent
 
-#### V1-15 · Discipline et incidents 🟡
+#### V1-15 · Discipline et incidents ✅
+> En tant que **surveillant général**, je veux qu'une sanction décidée
+> parvienne à la famille, afin qu'elle ait un effet éducatif et qu'elle
+> tienne devant un conseil de discipline.
+
 - [x] Incidents avec lieu, gravité, participants, confidentialité
 - [x] Sanctions et mérites au vocabulaire francophone
 - [x] Convocations de parents avec compte rendu
-- [ ] Écran de déclaration d'incident
+- [x] Écran de suivi des incidents, avec décision de sanction
+- [x] Sanctionner et notifier sont deux gestes distincts
+- [x] Les sanctions jamais transmises à la famille sont comptées et
+      remontées en tête de liste
+- [ ] Écran de déclaration d'incident par l'enseignant
 - [ ] Workflow de validation selon gravité
+
+**Fait** : `direction/SchoolLifePage.tsx`, `useSchoolLife.ts`.
+
+#### V1-15b · Autorisations de sortie ✅
+> En tant que **direction**, je veux savoir qui vient chercher un élève
+> avant d'autoriser sa sortie, afin de ne pas engager la responsabilité de
+> l'établissement.
+
+- [x] Demande de sortie avec motif, horaire et retour attendu
+- [x] Aucune autorisation possible tant que la personne qui récupère
+      l'élève n'est pas nommée — le bouton reste bloqué et l'explique
+- [x] Traçabilité : qui autorise, quand, et pour quelle raison
+- [ ] Constat de retour depuis le poste de garde
 
 ---
 
@@ -338,11 +360,26 @@ mais inutile reste en bas.
 - [ ] Envoi WhatsApp au parent
 - [ ] Consultation dans l'espace parent
 
-#### V1-26 · Relances d'impayés 🟡
+#### V1-26 · Suivi et relances d'impayés ✅
+> En tant que **gestionnaire**, je veux savoir qui doit quoi et depuis
+> quand, afin d'appeler les bonnes familles sans me tromper de montant.
+
 - [x] Compteur de relances par échéance
 - [x] Journal des envois (`message_logs`)
-- [ ] Tâche planifiée de relance progressive
-- [ ] Écran de suivi des impayés
+- [x] Écran de suivi des impayés, trié par ancienneté puis par montant
+- [x] Le reste à payer prime sur le montant facturé à l'affichage
+- [x] Une échéance dépassée n'est comptée en impayé que si le solde
+      reste dû
+- [x] Le numéro du responsable est cliquable à côté du montant exact
+- [x] Aucune relance automatique : la décision d'appeler reste humaine
+- [ ] Tâche planifiée de relance progressive (report assumé, cf. §17)
+
+**Fait** : `direction/BillingPage.tsx`, `useBilling.ts`.
+
+#### V1-26b · Grille tarifaire consultable ✅
+- [x] Tarifs par niveau, avec nombre de tranches et montant par tranche
+- [x] Modifier un tarif ne modifie aucune facture déjà émise — dit à
+      l'écran, parce que c'est ce qui rend la comptabilité vérifiable
 
 ---
 
@@ -360,11 +397,29 @@ mais inutile reste en bas.
 
 **Fait** : `(parent)/index.tsx`, `useParentDashboard.ts`.
 
-#### V1-28 · Annonces de l'établissement 🟡
+#### V1-28 · Annonces de l'établissement ✅
+> En tant que **directrice**, je veux savoir combien de familles vont
+> recevoir mon annonce et par quel canal avant de l'envoyer, afin de ne
+> pas découvrir mon erreur une fois qu'elle est sur leurs téléphones.
+
 - [x] Ciblage par école, cycle, niveau, classe, rôle
 - [x] Accusés de lecture
-- [ ] Écran de rédaction direction
-- [ ] Envoi multicanal effectif
+- [x] Écran de rédaction et de publication côté direction
+- [x] Brouillon obligatoire : une annonce ne part jamais d'un seul clic
+- [x] La confirmation dit le nombre exact de destinataires et les canaux
+- [x] Le taux de lecture est affiché après publication, avec une
+      suggestion de changer de canal en dessous de 70 %
+- [ ] Envoi multicanal effectif (SMS et WhatsApp branchés)
+
+**Fait** : `direction/CommunicationPage.tsx`, `useCommunication.ts`.
+
+#### V1-29 · Messagerie encadrée 🟡
+- [x] Fils de discussion, règles horaires, signalement
+- [x] Liste des conversations côté direction, non lues en tête
+- [x] Une famille sans réponse depuis plus de 48 h est signalée : passé
+      ce délai un parent ne réécrit pas, il se déplace
+- [ ] Écran de conversation (lecture et réponse dans le fil)
+- [ ] Application des règles d'horaires
 
 #### V1-29 · Messagerie encadrée 🟡
 - [x] Fils de discussion, règles horaires, signalement
@@ -387,11 +442,21 @@ mais inutile reste en bas.
 - [ ] Suivi de candidature par le parent
 - [ ] Paiement des frais de dossier
 
-#### V2-02 · Backoffice admissions 🟡
+#### V2-02 · Backoffice admissions ✅
+> En tant que **secrétaire**, je veux voir où en est chaque candidature et
+> ce qui lui manque, afin de rappeler la famille avec une demande précise.
+
 - [x] Statuts, décisions, liste d'attente, historique tracé
 - [x] Places disponibles par niveau
-- [ ] Écran de pipeline
+- [x] Écran de pipeline : reçue → dossier vérifié → entretien → décision
+- [x] Un dossier incomplet ne passe pas à l'entretien, et les pièces
+      manquantes sont nommées une par une
+- [x] Un refus exige un motif : c'est la réponse que lira la famille
+- [x] « Admis » et « inscrit » sont deux états distincts, et les admis
+      non inscrits sont comptés à part — ce sont des places perdues
 - [ ] Conversion candidature → élève en un geste
+
+**Fait** : `direction/AdmissionsPage.tsx`, `useAdmissions.ts`.
 
 ### E9 — Examens d'État
 
@@ -448,8 +513,16 @@ mais inutile reste en bas.
 
 - [x] Table `risk_signals` avec priorité, explication, plan, échéance
 - [x] Jamais de décision automatique : un signal est assigné à un humain
-- [ ] Détection automatique des signaux
-- [ ] Écran de suivi
+- [x] Écran de suivi, trié par score de risque
+- [x] Le score combine résultats, assiduité, comportement et scolarité :
+      un seul de ces signaux ne suffit pas à désigner un décrochage
+- [x] Le score n'est jamais affiché seul — toujours avec le détail daté
+      de ses signaux, sans quoi il serait lu comme un jugement sur l'élève
+- [x] Les élèves à risque élevé jamais contactés sont comptés à part
+- [x] Consigner un échange ne clôt pas le signalement
+- [ ] Détection automatique des signaux (calcul par tâche planifiée)
+
+**Fait** : `direction/RiskPage.tsx`, `useRiskSignals.ts`.
 
 ---
 
@@ -494,6 +567,57 @@ mais inutile reste en bas.
 - [ ] Cours, emploi du temps et notes consultables sans réseau
 - [ ] Indication claire de la fraîcheur des données
 
+### E16 — Ressources humaines
+
+> Cet épic manquait au backlog jusqu'au 30 août 2026. Le schéma
+> (`010_modules_optionnels.sql`) et les fonctions de paie existaient
+> depuis longtemps, mais aucune story ne les portait : le domaine était
+> invisible dans ce document, donc invisible tout court. Signalé par le
+> client, pas trouvé par nous.
+
+#### V2-10 · Registre du personnel ✅
+> En tant que **directrice**, je veux la liste de mon personnel avec ses
+> contrats, afin de savoir qui est permanent, contractuel ou vacataire
+> sans ouvrir un classeur.
+
+- [x] Fiches personnel : fonction, service, matricule, date d'embauche
+- [x] Type de contrat, salaire de base, heures hebdomadaires attendues
+- [x] Recherche par nom, fonction, service ou matricule
+- [x] Répartition par service affichée en un coup d'œil
+- [ ] Création et modification d'une fiche depuis l'écran
+
+**Fait** : `direction/HrPage.tsx`, `useHumanResources.ts`.
+
+#### V2-11 · Paie mensuelle ✅
+> En tant que **directrice**, je veux valider la paie avant qu'elle ne
+> soit décaissée, afin qu'aucun brouillon ne sorte de la caisse.
+
+- [x] Paie calculée par mois : heures prévues, heures faites, absences
+- [x] Trois états séquentiels : brouillon → validé → payé
+- [x] « Marquer payé » n'apparaît qu'après validation — un brouillon ne
+      se décaisse pas
+- [x] Les heures d'absence sont affichées à côté du net : sans elles,
+      l'écart avec le salaire de base devient une réclamation
+- [x] Masse salariale du mois calculée et affichée
+- [ ] Bulletin de paie PDF remis à l'agent
+- [ ] Génération mensuelle automatique (fonction écrite, non branchée)
+
+#### V2-12 · Congés et absences du personnel ✅
+> En tant que **directrice**, je veux décider des congés en voyant le
+> solde restant de l'agent, afin de ne pas accorder ce qui n'existe pas.
+
+- [x] Demandes avec type, dates, nombre de jours et motif
+- [x] Solde de congés restant affiché sur la fiche de chaque agent
+- [x] Un congé demandé n'est pas un congé accordé : le solde ne bouge
+      qu'à l'approbation, et les deux états ne portent ni la même
+      couleur ni le même mot
+- [x] Un refus exige un motif d'au moins cinq caractères — c'est le seul
+      message que recevra l'agent
+- [ ] Dépôt de demande côté agent (écran enseignant)
+- [ ] Impact du congé sur l'emploi du temps et les remplacements
+
+---
+
 ### E14 — Services campus
 
 #### V3-07 à V3-10 · Transport, cantine, bibliothèque, infirmerie 🟡
@@ -507,10 +631,23 @@ mais inutile reste en bas.
 
 ### E15 — Console SaaS
 
-#### V4-01 · Administration des établissements 🟡
+#### V4-01 · Administration des établissements ✅
+> En tant qu'**éditeur de la plateforme**, je veux voir le parc des écoles
+> clientes et leur usage réel, afin de repérer une école qui décroche avant
+> qu'elle ne résilie.
+
 - [x] Plans, limites, consommation, facturation SaaS
 - [x] Impersonation avec consentement et audit
-- [ ] Console super admin
+- [x] Console éditeur : parc, abonnements, revenu mensuel récurrent
+- [x] Comptes dormants (aucune activité depuis 30 jours) signalés
+- [x] Essais arrivant à échéance sous 7 jours signalés
+- [x] **Réservée au rôle `ADMIN`.** Un directeur n'y a pas accès : lui
+      montrer les effectifs et le chiffre d'affaires des autres écoles
+      clientes romprait l'isolation multi-tenant. Vérifié en local — un
+      directeur reçoit « Accès refusé ». Les politiques RLS la ferment
+      aussi côté base, la route n'étant que la première barrière.
+
+**Fait** : `direction/PlatformPage.tsx`, `usePlatformConsole.ts`.
 
 #### V4-02 · Onboarding d'une école ⬜
 - [ ] Création guidée : identité, année, cycles, classes, personnel
@@ -572,32 +709,74 @@ n'est pas terminée, quel que soit son état fonctionnel.
 
 ## 9. État d'avancement
 
+*Comptes établis en relisant le document lui-même, au 30 août 2026.*
+
 | Version | Stories | ✅ | 🟡 | ⬜ |
 |---|---|---|---|---|
-| V1 — cœur | 29 | 18 | 9 | 2 |
-| V2 — adoption | 9 | 2 | 4 | 3 |
-| V3 — différenciation | 6 | 1 | 3 | 2 |
-| V4 — échelle | 3 | 0 | 1 | 2 |
-| **Total** | **47** | **21** | **17** | **9** |
+| V1 — cœur | 32 | 23 | 7 | 2 |
+| V2 — adoption | 12 | 6 | 3 | 3 |
+| V3 — différenciation | 7 | 1 | 4 | 2 |
+| V4 — échelle | 3 | 1 | 0 | 2 |
+| **Total** | **54** | **31** | **14** | **9** |
 
-*(V3-07 à V3-10 — transport, cantine, bibliothèque, infirmerie — sont
-regroupées en une entrée : leur schéma est commun et leurs écrans se
-ressemblent.)*
+*(V3-07 à V3-10 — transport, cantine, bibliothèque, infirmerie — comptent
+pour une seule entrée : leur schéma est commun et leurs écrans se
+ressemblent. Le client a explicitement écarté ces quatre modules du
+périmètre de la livraison.)*
 
-**Lecture.** Le socle est solide : isolation, rôles, référentiel, notes,
-encaissement et paiement en ligne sont terminés et testés. Les 17 stories
-partielles ont presque toutes leur schéma prêt et attendent un écran —
-c'est du travail d'interface, pas de conception.
+### Ce qui a changé le 30 août
 
-**Le vrai blocage est DT-01** : rien de tout cela n'a été exécuté contre
+Sept écrans web ont été livrés d'un coup, après un audit demandé par le
+client : dix domaines documentés au cahier des charges n'avaient aucune
+interface, et cinq autres n'existaient que sur mobile.
+
+| Écran | Route | Story |
+|---|---|---|
+| Ressources humaines | `/direction/hr` | V2-10, V2-11, V2-12 |
+| Admissions | `/direction/admissions` | V2-02 |
+| Vie scolaire | `/direction/school-life` | V1-15, V1-15b |
+| Facturation & impayés | `/direction/billing` | V1-26, V1-26b |
+| Communication | `/direction/communication` | V1-28, V1-29 |
+| Élèves en difficulté | `/direction/risk` | V2-09 |
+| Console éditeur | `/direction/platform` | V4-01 |
+
+**Le domaine RH n'existait pas dans ce backlog.** Ses tables et ses
+fonctions de paie étaient écrites depuis les migrations de juillet, mais
+aucune story ne les portait : le domaine était invisible dans le document,
+donc invisible dans le produit. C'est le client qui l'a vu, pas nous. E16
+a été créé pour que cela ne se reproduise pas — un domaine du cahier des
+charges qui n'a pas d'épic est un domaine qu'on oubliera.
+
+Un enseignement de méthode : le backlog listait « 21 stories faites » et
+c'était exact story par story, mais il ne disait rien de ce qui n'y
+figurait pas. Un tableau d'avancement ne mesure que ce qu'on a pensé à y
+mettre.
+
+### Lecture
+
+Le socle est solide : isolation, rôles, référentiel, notes, encaissement
+et paiement en ligne sont terminés et testés. Les 14 stories partielles
+ont presque toutes leur schéma prêt et attendent un écran ou un branchement
+— c'est du travail d'interface, pas de conception.
+
+**Le vrai blocage reste DT-01** : rien de tout cela n'a été exécuté contre
 une base Supabase réelle. Tant que les migrations ne sont pas appliquées,
 chaque ✅ signifie « écrit et vérifié en local », pas « tourne en
-production ».
+production ». Les sept écrans du 30 août lisent des jeux de démonstration
+en mode aperçu ; leur code Supabase est écrit mais n'a jamais reçu de
+réponse d'un vrai serveur.
 
-**Prochaine séquence recommandée**
-1. DT-01 — appliquer les migrations (débloque tout le reste)
-2. V1-11 — inscription des élèves : sans elle, aucune donnée à afficher
-3. V1-20 et V1-25 — les PDF : bulletin et reçu sont ce que les familles
-   emportent
-4. V1-28 — annonces : le canal qui fait adopter l'application
-5. DT-02 — poursuivre la sortie de Firebase, verticale par verticale
+### Prochaine séquence recommandée
+
+1. **DT-01** — appliquer les migrations sur le projet Supabase du client.
+   Débloque tout le reste, et c'est la seule chose qui transforme les ✅
+   en fonctionnalités réelles.
+2. **V1-11** — inscription des élèves : sans elle, aucune donnée à
+   afficher dans les sept écrans qui viennent d'être livrés.
+3. **V1-20 et V1-25** — les PDF : bulletin et reçu sont ce que les
+   familles emportent, et ce qu'elles montrent quand il y a litige.
+4. **V2-11** — le bulletin de paie PDF, pour la même raison côté personnel.
+5. **DT-02** — poursuivre la sortie de Firebase, verticale par verticale.
+
+Les quatre modules de services campus (transport, cantine, bibliothèque,
+infirmerie) restent sans écran, sur décision du client.

@@ -87,6 +87,45 @@ Dix écrans refaits et branchés sur Supabase :
 | Guichet d'encaissement | `(direction)/caisse.tsx` | **Encaissement rattaché à une échéance** — le solde bougeait pas avant ; session de caisse ouverte/fermée avec écart constaté |
 | Emploi du temps (prof + élève) | `WeekScheduleView` | Remplacements et annulations fusionnés dans la journée |
 
+#### Sept écrans web de gestion (30 août)
+
+Un audit demandé par le client a montré que **dix domaines documentés au
+cahier des charges n'avaient aucune interface** — ni web ni mobile — et
+que cinq autres n'existaient que sur mobile. Le schéma et les fonctions
+étaient là depuis les migrations 006 à 011 ; il manquait de quoi s'en
+servir.
+
+Le cas le plus net était les ressources humaines : tables de contrats, de
+paie et de congés écrites, fonctions `generateMonthlyPayroll` et
+`validatePayslip` déployables, et pas un seul écran. Le domaine n'avait
+même pas d'épic au backlog, ce qui explique qu'il soit passé inaperçu :
+un tableau d'avancement ne mesure que ce qu'on a pensé à y mettre.
+
+| Écran | Route | Règle métier portée à l'affichage |
+|---|---|---|
+| Ressources humaines | `/direction/hr` | Paie brouillon → validé → payé ; « Marquer payé » n'apparaît qu'après validation, un brouillon ne se décaisse pas. Heures d'absence toujours affichées à côté du net |
+| Admissions | `/direction/admissions` | Un dossier incomplet ne passe pas à l'entretien, pièces manquantes nommées une par une ; « admis » ≠ « inscrit », les admis non inscrits comptés à part |
+| Vie scolaire | `/direction/school-life` | Sanctionner ≠ notifier : les sanctions jamais transmises sont comptées et remontées. Aucune sortie autorisable sans nommer qui récupère l'élève |
+| Facturation & impayés | `/direction/billing` | Le reste à payer prime sur le facturé ; aucune relance automatique — l'écran donne le montant et le numéro, la décision reste humaine |
+| Communication | `/direction/communication` | Publier est irréversible : la confirmation dit combien de familles et par quel canal, avant l'envoi. Taux de lecture affiché après |
+| Élèves en difficulté | `/direction/risk` | Score cumulant résultats, assiduité, comportement et scolarité ; jamais affiché seul, toujours avec ses signaux datés ; ne déclenche rien |
+| Console éditeur | `/direction/platform` | **Rôle `ADMIN` seulement** — voir ci-dessous |
+
+**La console éditeur n'est pas dans l'espace du directeur**, contrairement
+à la demande initiale. Un directeur administre son établissement ; lui
+montrer les effectifs et le chiffre d'affaires des autres écoles clientes
+romprait l'isolation multi-tenant qui est la promesse centrale du produit.
+La séparation tient à trois niveaux : la navigation ne montre pas
+l'entrée, la route refuse l'accès, et les politiques RLS ne renverraient
+aucune ligne si les deux premières barrières tombaient. Vérifié en local —
+un directeur y reçoit « Accès refusé ».
+
+Chaque écran affiche la règle qui le gouverne au lieu de la laisser dans
+la documentation. Un utilisateur qui découvre à l'usage qu'un brouillon de
+paie ne se décaisse pas a déjà perdu du temps ; l'écran le dit avant.
+
+Les 28 liens de navigation pointent tous vers une route existante.
+
 #### Qualité du code
 
 Le type-check était cassé sur les quatre packages. Il passe maintenant :

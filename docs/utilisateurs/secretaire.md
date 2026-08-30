@@ -142,6 +142,28 @@ direction plutôt que de choisir vous-même.
 
 ---
 
+## Le suivi des candidatures
+
+L'écran **Admissions** de l'espace Direction montre où en est chaque
+dossier :
+
+> Reçue → Dossier vérifié → Entretien / test → Admis → Inscrit
+
+Deux règles vous concernent directement.
+
+**Les pièces manquantes sont nommées une par une.** Quand vous rappelez
+une famille, vous savez exactement quoi demander : « le certificat de
+naissance et le bulletin du CM2 », pas « votre dossier est incomplet ».
+Tant qu'il manque une pièce, le dossier ne peut pas passer à l'entretien —
+le bouton est désactivé.
+
+**Un candidat admis n'est pas un élève inscrit.** L'écran les compte à
+part, et signale tant qu'il en reste. Ce sont les dossiers à relancer en
+priorité : la place n'est pas réservée, et une famille qui tarde peut la
+perdre sans le savoir.
+
+---
+
 ## Questions fréquentes
 
 **« Un parent demande accès au dossier de son enfant. »**

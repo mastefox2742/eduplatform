@@ -137,6 +137,28 @@ pas être traité différemment sur le plan disciplinaire.
 
 ---
 
+## Le suivi des incidents côté direction
+
+Ce que vous signalez arrive sur l'écran **Vie scolaire** de la direction.
+Deux choses valent d'être sues.
+
+**La sanction et sa notification sont deux gestes séparés.** La direction
+décide d'abord la sanction, puis notifie la famille dans un second temps.
+Tant que la notification n'est pas faite, l'incident reste compté comme
+« sanction non transmise » et remonte en tête de liste.
+
+Une sanction que la famille n'a jamais reçue n'a pas d'effet éducatif, et
+elle ne tient pas devant un conseil de discipline. C'est pour cela qu'elle
+est comptée séparément plutôt que classée.
+
+**Les autorisations de sortie exigent un nom.** Aucune sortie n'est
+autorisable tant que la personne qui vient chercher l'élève n'est pas
+désignée. Si vous transmettez une demande — depuis l'infirmerie par
+exemple — précisez qui vient, sinon la direction devra rappeler la famille
+avant de pouvoir décider.
+
+---
+
 ## Questions fréquentes
 
 **« Un enseignant n'a pas fait l'appel. »**

@@ -129,6 +129,31 @@ règlement au guichet.
 
 ---
 
+## Le suivi des impayés
+
+L'écran **Facturation & impayés** de l'espace Direction répond à une
+question que la caisse ne traite pas : « qui doit quoi, et depuis
+quand ? »
+
+Votre écran de caisse enregistre ce qui rentre. Celui-ci liste ce qui
+manque, trié par ancienneté du retard puis par montant, avec le numéro du
+responsable à côté de chaque somme.
+
+Le chiffre à regarder est le **reste à payer**, pas le montant facturé.
+Une famille qui doit 80 000 FCFA sur 250 000 et une famille qui doit
+250 000 sur 250 000 n'appellent pas le même appel.
+
+**Aucune relance n'est automatique.** L'outil prépare l'information ; il
+ne téléphone pas à votre place, et il n'envoie pas de message sans que
+quelqu'un l'ait décidé.
+
+L'onglet **Grille tarifaire** vous donne les montants en vigueur par
+niveau, et le détail des tranches. Retenez qu'un tarif modifié ne change
+aucune facture déjà émise : c'est ce qui permet de justifier un montant
+ancien devant un contrôleur.
+
+---
+
 ## Questions fréquentes
 
 **« Le parent dit avoir payé en ligne mais le solde n'a pas bougé. »**

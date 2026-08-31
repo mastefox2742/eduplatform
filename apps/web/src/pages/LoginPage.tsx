@@ -14,8 +14,8 @@ import { UserRole } from '@school/shared-types'
 // celui posé côté dashboard pour la présentation client.
 const DEMO_ACCOUNTS = usesSupabase('identite')
   ? [
-      { label: '👔 Direction',  email: 'direction@lareference.cg', password: 'DemoAlpha2026!' },
-      { label: '📚 Professeur', email: 'okemba@lareference.cg',    password: 'DemoAlpha2026!' },
+      { label: '👔 Direction',  email: 'direction@lareference.cg', password: 'Demo2026!Alpha' },
+      { label: '📚 Professeur', email: 'okemba@lareference.cg',    password: 'Demo2026!Alpha' },
     ]
   : [
       { label: '👔 Direction',  email: 'direction@demo.fr', password: 'demo1234' },
